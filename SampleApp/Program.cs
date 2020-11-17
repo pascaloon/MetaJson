@@ -4,26 +4,30 @@ using System;
 namespace SampleApp
 {
     [Serialize]
-    class MyObject
+    public class Person
     {
         [Serialize]
-        public string StringProperty { get; set; }
+        public string Name { get; set; }
         [Serialize]
-        public int IntProperty { get; set; }
+        public int Age { get; set; }
     }
 
     class Program
     {
         static void Main(string[] args)
         {
-            MyObject myObject = new MyObject()
+            Person myObject = new Person()
             {
-                StringProperty = "StringValue",
-                IntProperty = 42
+                Name = "Bob",
+                Age = 42
             };
 
-            //string value = MetaJsonSerializer.Serialize(myObject);
-            //Console.WriteLine($"result: {value}");
+            DummySymbol.DoNothing();
+            string value = MetaJsonSerializer.Serialize<Person>(myObject);
+            Console.WriteLine($"result:");
+            Console.WriteLine($"--------------------------------");
+            Console.WriteLine(value);
+            Console.WriteLine($"--------------------------------");
         }
     }
 }

@@ -1,8 +1,10 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -10,20 +12,13 @@ namespace MetaJson
 {
     public static class DiagnosticDescriptors
     {
-        public static readonly DiagnosticDescriptor SerializableClass = new DiagnosticDescriptor(
+        public static readonly DiagnosticDescriptor ClassNotSerializable = new DiagnosticDescriptor(
             id: "MJ-001", 
-            title: "Class Serialization Available", 
-            messageFormat: "Class '{0}' is serializable", 
-            category: "MetaJson.Serializables", 
-            defaultSeverity: DiagnosticSeverity.Warning, 
+            title: "Class Not Serializable", 
+            messageFormat: "Class '{0}' is not found or not set as serializable", 
+            category: "MetaJson.Serialization", 
+            defaultSeverity: DiagnosticSeverity.Error, 
             isEnabledByDefault: true);
-        public static readonly DiagnosticDescriptor SerializableProperty = new DiagnosticDescriptor(
-           id: "MJ-002",
-           title: "Property Serialization Available",
-           messageFormat: "Property '{0}' is serializable",
-           category: "MetaJson.Serializables",
-           defaultSeverity: DiagnosticSeverity.Warning,
-           isEnabledByDefault: true);
     }
 
     [Generator]
@@ -32,21 +27,84 @@ namespace MetaJson
         public void Execute(GeneratorExecutionContext context)
         {
             List<SerializableClass> serializableClasses = new List<SerializableClass>();
+            List<SerializeInvocation> serializeInvocations = new List<SerializeInvocation>();
             foreach (SyntaxTree tree in context.Compilation.SyntaxTrees)
             {
-                FindClassesAndInvocationsWaler walk = new FindClassesAndInvocationsWaler();
+                SemanticModel semanticModel = context.Compilation.GetSemanticModel(tree);
+                FindClassesAndInvocationsWaler walk = new FindClassesAndInvocationsWaler(semanticModel, context);
                 walk.Visit(tree.GetRoot());
                 serializableClasses.AddRange(walk.SerializableClasses);
+                serializeInvocations.AddRange(walk.SerializeInvocations);
             }
 
-            foreach (SerializableClass sc in serializableClasses)
+            // Create methods!
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(@"
+using System;
+using System.Text;
+
+namespace MetaJson
+{
+    public static class DummySymbol {public static void DoNothing() {}}
+
+    public static class MetaJsonSerializer
+    {"
+);
+            const string SPC = "    ";
+            foreach (SerializeInvocation invocation in serializeInvocations)
             {
-                context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.SerializableClass, sc.Declaration.Identifier.GetLocation(), sc.Name));
-                foreach (SerializableProperty sp in sc.Properties)
+                string invocationTypeStr = invocation.TypeArg.Symbol.ToString();
+
+                SerializableClass sc = serializableClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
+                if (sc == null)
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.SerializableProperty, sp.Declaration.Identifier.GetLocation(), sp.Name));
+                    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, invocation.Invocation.GetLocation(), invocationTypeStr));
+                    continue;
                 }
+
+
+                sb.Append($@"{SPC}{SPC}public static string Serialize<T>(T obj) where T: {invocation.TypeArg.Symbol.ToString()}");
+                sb.Append(@"
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine(""{"");
+");
+
+                for (int i = 0; i <sc.Properties.Count; ++i)
+                {
+                    SerializableProperty prop = sc.Properties[i];
+                    sb.Append($@"
+            sb.Append(""    \""{prop.Name}\"": "");
+");
+                    sb.Append($"{SPC}{SPC}{SPC}");
+                    sb.Append(prop.ValueSerializer.GetStringValue($"obj.{prop.Name}"));
+
+                    //sb.Append($"{SPC}{SPC}{SPC}{SPC}\"{prop.Name}\": obj.{prop.Name}");
+                    if (i < sc.Properties.Count - 1)
+                        sb.Append($@"
+            sb.AppendLine("","");
+");
+                    else
+                        sb.Append($@"
+            sb.AppendLine();
+");
+
+                }
+
+                sb.AppendLine(@"
+            sb.Append(""}"");
+            return sb.ToString();
+        }");
             }
+
+            // Class footer
+            sb.AppendLine(@"
+    }
+}"
+);
+            context.AddSource("MetaJsonSerializer", SourceText.From(sb.ToString(), Encoding.UTF8));
+
+
         }
 
         public void Initialize(GeneratorInitializationContext context)
@@ -59,6 +117,7 @@ namespace MetaJson
         public string Name { get; set; }
         public ClassDeclarationSyntax Declaration { get; set; }
         public List<SerializableProperty> Properties { get; set; } = new List<SerializableProperty>();
+        public INamedTypeSymbol Type { get; set; }
     }
 
     class SerializableProperty
@@ -66,7 +125,14 @@ namespace MetaJson
         public string Name { get; set; }
         public string ValueType { get; set; }
         public PropertyDeclarationSyntax Declaration { get; set; }
+        public SerializablePropertyType ValueSerializer { get; set; }
 
+    }
+
+    class SerializeInvocation
+    {
+        public InvocationExpressionSyntax Invocation { get; set; }
+        public SymbolInfo TypeArg { get; set; }
     }
 
     abstract class SerializablePropertyType
@@ -76,12 +142,17 @@ namespace MetaJson
 
     class StringSerializablePropertyType : SerializablePropertyType
     {
-        public override string GetStringValue(string id) => id;
+        public override string GetStringValue(string id) => $"sb.Append(\"\\\"\");sb.Append({id});sb.Append(\"\\\"\");";
+    }
+
+    class NumSerializablePropertyType : SerializablePropertyType
+    {
+        public override string GetStringValue(string id) => $"sb.Append({id});";
     }
 
     class SimpleSerializablePropertyType : SerializablePropertyType
     {
-        public override string GetStringValue(string id) => $"{id}.ToString()";
+        public override string GetStringValue(string id) => $"sb.Append(\"\\\"\");sb.Append({id}.ToString());sb.Append(\"\\\"\");";
     }
 
     class ClassWalkerState
@@ -93,9 +164,19 @@ namespace MetaJson
     class FindClassesAndInvocationsWaler : CSharpSyntaxWalker
     {
         public List<SerializableClass> SerializableClasses { get; set; } = new List<SerializableClass>();
+        public List<SerializeInvocation> SerializeInvocations { get; set; } = new List<SerializeInvocation>();
 
         Stack<ClassWalkerState> _currentClassStack = new Stack<ClassWalkerState>();
         ClassWalkerState _currentClassState;
+
+        private readonly SemanticModel _semanticModel;
+        private readonly GeneratorExecutionContext _context;
+
+        public FindClassesAndInvocationsWaler(SemanticModel semanticModel, GeneratorExecutionContext context)
+        {
+            _semanticModel = semanticModel;
+            _context = context;
+        }
 
         public override void VisitClassDeclaration(ClassDeclarationSyntax node)
         {
@@ -118,10 +199,12 @@ namespace MetaJson
 
             if (isSerializable)
             {
+                INamedTypeSymbol type = _semanticModel.GetDeclaredSymbol(node);
                 SerializableClass sc = new SerializableClass()
                 {
                     Name = node.Identifier.ValueText,
-                    Declaration = node
+                    Declaration = node,
+                    Type = type
                 };
                 _currentClassState.CurrentClass = sc;
                 SerializableClasses.Add(sc);
@@ -149,10 +232,21 @@ namespace MetaJson
                         if (name == "Serialize" || name == "MetaJson.Serialize")
                         {
                             isSerializable = true;
+                            SymbolInfo typeArg = _semanticModel.GetSymbolInfo(node.Type);
+                            string typeString = typeArg.Symbol.ToString();
+                            SerializablePropertyType ser = null;
+                            if (typeString == "string")
+                                ser = new StringSerializablePropertyType();
+                            else if (typeString == "int")
+                                ser = new NumSerializablePropertyType();
+                            else
+                                ser = new SimpleSerializablePropertyType();
+
                             _currentClassState.CurrentClass.Properties.Add(new SerializableProperty() 
                             { 
                                 Name = node.Identifier.ValueText,
-                                Declaration = node
+                                Declaration = node,
+                                ValueSerializer = ser
                             });
 
                             break;
@@ -163,6 +257,34 @@ namespace MetaJson
                 }
             }
             base.VisitPropertyDeclaration(node);
+        }
+
+        public override void VisitInvocationExpression(InvocationExpressionSyntax node)
+        {
+            if (node.Expression is MemberAccessExpressionSyntax memberAccessSyntax
+                && memberAccessSyntax.Expression.ToString().Equals("MetaJsonSerializer"))
+            {
+                // Calling MetaJsonSerializer static methods
+                if (memberAccessSyntax.Name is GenericNameSyntax generic && generic.Identifier.ValueText.ToString().Equals("Serialize"))
+                {
+                    if (node.ArgumentList.Arguments.Count == 1 && generic.TypeArgumentList.Arguments.Count == 1)
+                    {
+                        TypeSyntax type = generic.TypeArgumentList.Arguments.First();
+                        SymbolInfo argSymbol = _semanticModel.GetSymbolInfo(type);
+                        SerializeInvocations.Add(new SerializeInvocation()
+                        {
+                            Invocation = node,
+                            TypeArg = argSymbol
+                        });
+                    }
+                    else
+                    {
+                        // error
+                    }
+                }
+            }
+
+            base.VisitInvocationExpression(node);
         }
     }
 }
