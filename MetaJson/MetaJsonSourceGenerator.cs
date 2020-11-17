@@ -63,7 +63,7 @@ namespace MetaJson
                 }
 
 
-                sb.Append($@"{SPC}{SPC}public static string Serialize<T>(T obj) where T: {invocation.TypeArg.Symbol.ToString()}");
+                sb.Append($@"{SPC}{SPC}public static string Serialize<T>({invocationTypeStr} obj) where T: {invocationTypeStr}");
                 sb.Append(@"
         {
             StringBuilder sb = new StringBuilder();
@@ -94,7 +94,8 @@ namespace MetaJson
                 sb.AppendLine(@"
             sb.Append(""}"");
             return sb.ToString();
-        }");
+        }
+");
             }
 
             // Class footer
