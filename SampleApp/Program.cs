@@ -33,7 +33,7 @@ namespace SampleApp
             Person myObject = new Person()
             {
                 Name = "Bob",
-                Age = 42
+                Age = 42,
             };
 
             string value = MetaJsonSerializer.Serialize<Person>(myObject);
