@@ -91,12 +91,11 @@ namespace MetaJson
 
 
             // primitive types
-            string invocationTypeStr = symbol.ToString();
-            switch (invocationTypeStr)
+            switch (symbol.SpecialType)
             {
-                case "int":
+                case SpecialType.System_Int32:
                     return new NumericNode(csObj);
-                case "string":
+                case SpecialType.System_String:
                     return new StringNode(csObj);
                 default:
                     break;
@@ -106,6 +105,7 @@ namespace MetaJson
             
 
             // if is serializable class
+            string invocationTypeStr = symbol.ToString();
             SerializableClass foundClass = knownClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
             if (foundClass != null)
             {
