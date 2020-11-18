@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -79,7 +80,16 @@ namespace MetaJson
     }
 }"
 );
-            context.AddSource("MetaJsonSerializer", SourceText.From(sb.ToString(), Encoding.UTF8));
+            string generatedFileSource = sb.ToString();
+            if (Debugger.IsAttached)
+            {
+                // ONLY WHEN DEBUGGING WITH DRIVER APP
+                Console.WriteLine("Generated Sources:");
+                Console.WriteLine("----------------------------------------------------------");
+                Console.WriteLine(generatedFileSource);
+                Console.WriteLine("----------------------------------------------------------");
+            }
+            context.AddSource("MetaJsonSerializer", SourceText.From(generatedFileSource, Encoding.UTF8));
         }
 
         void GenerateMethodBody(StringBuilder sb, SerializableClass sc)
@@ -87,24 +97,9 @@ namespace MetaJson
             // Create nodes
             List<MethodNode> nodes = new List<MethodNode>();
             nodes.Add(new CsharpTabControlNode(+3));
-            nodes.Add(new CSharpNode("$tStringBuilder sb = new StringBuilder();\r\n"));
-            nodes.Add(new JsonNode("{\\n"));
-            nodes.Add(new JsonTabControlNode(+1));
-
-            for (int i = 0; i < sc.Properties.Count; ++i)
-            {
-                SerializableProperty sp = sc.Properties[i];
-                nodes.Add(new JsonNode($"$t\"{sp.Name}\": "));
-                nodes.AddRange(sp.ValueSerializer.GetStringValue($"obj.{sp.Name}"));
-                if (i < sc.Properties.Count - 1)
-                    nodes.Add(new JsonNode($",\\n"));
-                else
-                    nodes.Add(new JsonNode($"\\n"));
-            }
-
-            nodes.Add(new JsonTabControlNode(-1));
-            nodes.Add(new JsonNode("}"));
-            nodes.Add(new CSharpNode("$treturn sb.ToString();\r\n"));
+            nodes.Add(new CSharpLineNode("StringBuilder sb = new StringBuilder();"));
+            nodes.AddRange(GetClassNodes(sc));
+            nodes.Add(new CSharpLineNode("return sb.ToString();"));
 
 
             // Fix Json Tabs
@@ -156,7 +151,7 @@ namespace MetaJson
             {
                 if (nodes[i] is JsonNode js)
                 {
-                    CSharpNode cs = new CSharpNode($"$tsb.Append(\"{js.Value.Replace("\"", "\\\"")}\");\r\n");
+                    CSharpNode cs = new CSharpLineNode($"sb.Append(\"{js.Value.Replace("\"", "\\\"")}\");");
                     nodes.RemoveAt(i);
                     nodes.Insert(i, cs);
                 }
@@ -185,6 +180,33 @@ namespace MetaJson
                 }
             }
 
+        }
+
+        IEnumerable<MethodNode> GetClassNodes(SerializableClass sc)
+        {
+            yield return new JsonNode("{\\n");
+            yield return new JsonTabControlNode(+1);
+
+            for (int i = 0; i < sc.Properties.Count; ++i)
+            {
+                SerializableProperty sp = sc.Properties[i];
+
+                // Json property name is the class' property name
+                yield return new JsonNode($"$t\"{sp.Name}\": ");
+
+                // Json property value varies depending on its type
+                foreach (MethodNode jsonValueNode in sp.ValueSerializer.GetValueNodes($"obj.{sp.Name}"))
+                    yield return jsonValueNode;
+
+                // If last element, don't add a ','
+                if (i < sc.Properties.Count - 1)
+                    yield return new JsonNode($",\\n");
+                else
+                    yield return new JsonNode($"\\n");
+            }
+
+            yield return new JsonTabControlNode(-1);
+            yield return new JsonNode("}");
         }
 
         JsonNode MergeJsonNodes(IEnumerable<JsonNode> nodes)
@@ -231,7 +253,7 @@ namespace MetaJson
         public string Name { get; set; }
         public string ValueType { get; set; }
         public PropertyDeclarationSyntax Declaration { get; set; }
-        public SerializablePropertyType ValueSerializer { get; set; }
+        public SerializablePropertyValue ValueSerializer { get; set; }
 
     }
 
@@ -239,82 +261,6 @@ namespace MetaJson
     {
         public InvocationExpressionSyntax Invocation { get; set; }
         public SymbolInfo TypeArg { get; set; }
-    }
-
-
-    abstract class MethodNode { }
-
-    class CSharpNode : MethodNode
-    {
-        public string CSharpCode { get; set; } = String.Empty;
-
-        public CSharpNode(string cSharpCode)
-        {
-            CSharpCode = cSharpCode;
-        }
-    }
-
-    class CsharpTabControlNode : MethodNode
-    {
-        public int Delta { get; set; } = 0;
-
-        public CsharpTabControlNode(int delta)
-        {
-            Delta = delta;
-        }
-    }
-
-    class JsonNode : MethodNode
-    {
-        public string Value { get; set; } = String.Empty;
-
-        public JsonNode(string value)
-        {
-            Value = value;
-        }
-    }
-
-    class JsonTabControlNode : MethodNode
-    {
-        public int Delta { get; set; } = 0;
-
-        public JsonTabControlNode(int delta)
-        {
-            Delta = delta;
-        }
-    }
-
-    abstract class SerializablePropertyType
-    {
-        abstract public IEnumerable<MethodNode> GetStringValue(string id);
-    }
-
-    class StringSerializablePropertyType : SerializablePropertyType
-    {
-        public override IEnumerable<MethodNode> GetStringValue(string id)
-        {
-            yield return new JsonNode("\"");
-            yield return new CSharpNode($"$tsb.Append({id});\r\n");
-            yield return new JsonNode("\"");
-        }
-    }
-
-    class NumSerializablePropertyType : SerializablePropertyType
-    {
-        public override IEnumerable<MethodNode> GetStringValue(string id)
-        {
-            yield return new CSharpNode($"$tsb.Append({id});\r\n");
-        }
-    }
-
-    class SimpleSerializablePropertyType : SerializablePropertyType
-    {
-        public override IEnumerable<MethodNode> GetStringValue(string id)
-        {
-            yield return new JsonNode("\"");
-            yield return new CSharpNode($"$tsb.Append({id}.ToString());\r\n");
-            yield return new JsonNode("\"");
-        }
     }
 
     class ClassWalkerState
@@ -396,13 +342,13 @@ namespace MetaJson
                             isSerializable = true;
                             SymbolInfo typeArg = _semanticModel.GetSymbolInfo(node.Type);
                             string typeString = typeArg.Symbol.ToString();
-                            SerializablePropertyType ser = null;
+                            SerializablePropertyValue ser = null;
                             if (typeString == "string")
-                                ser = new StringSerializablePropertyType();
+                                ser = new StringSerializablePropertyValue();
                             else if (typeString == "int")
-                                ser = new NumSerializablePropertyType();
+                                ser = new NumSerializablePropertyValue();
                             else
-                                ser = new SimpleSerializablePropertyType();
+                                ser = new SimpleSerializablePropertyValue();
 
                             _currentClassState.CurrentClass.Properties.Add(new SerializableProperty() 
                             { 
