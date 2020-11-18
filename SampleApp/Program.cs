@@ -20,7 +20,7 @@ namespace SampleApp
         [Serialize]
         public int PageCount { get; set; }
         [Serialize]
-        public string Author { get; set; }
+        public Person Author { get; set; }
     }
 
 
@@ -30,27 +30,23 @@ namespace SampleApp
         {
             DummySymbol.DoNothing();
 
-            Person myObject = new Person()
+            Person author = new Person()
             {
                 Name = "Bob",
                 Age = 42,
             };
 
-            string value = MetaJsonSerializer.Serialize<Person>(myObject);
-            Console.WriteLine($"output:");
-            Console.WriteLine($"--------------------------------");
-            Console.WriteLine(value);
-            Console.WriteLine($"--------------------------------");
-
             Book book = new Book()
             {
-                Name = "Some random book",
+                Name = "The Great Voyage",
                 PageCount = 300,
-                Author = "Someone"
+                Author = author
             };
 
-            string value2 = MetaJsonSerializer.Serialize<Book>(book);
-            Console.WriteLine(value2);
+            Console.WriteLine($"output:");
+            Console.WriteLine($"--------------------------------");
+            string bookJson = MetaJsonSerializer.Serialize<Book>(book);
+            Console.WriteLine(bookJson);
             Console.WriteLine($"--------------------------------");
         }
     }

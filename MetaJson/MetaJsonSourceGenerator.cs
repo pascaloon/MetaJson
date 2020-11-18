@@ -230,9 +230,9 @@ namespace MetaJson
             }
             else if (delta < 0)
             {
-                for (int i = 0; i < delta; i++)
+                for (int i = 0; i < -delta; i++)
                 {
-                    origin = origin.Substring(origin.Length - 4);
+                    origin = origin.Remove(0, 4);
                 }
             }
             return origin;

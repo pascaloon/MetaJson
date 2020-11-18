@@ -43,7 +43,7 @@ namespace MetaJson
             }
 
             yield return new JsonTabControlNode(-1);
-            yield return new PlainJsonNode("}");
+            yield return new PlainJsonNode("$t}");
         }
     }
 
