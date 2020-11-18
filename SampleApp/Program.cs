@@ -21,7 +21,7 @@ namespace SampleApp
         [Serialize]
         public int PageCount { get; set; }
         [Serialize]
-        public Person Author { get; set; }
+        public List<Person> Authors { get; set; }
         [Serialize]
         public IList<string> FavoriteQuotes { get; set; }
 
@@ -34,17 +34,27 @@ namespace SampleApp
         {
             DummySymbol.DoNothing();
 
-            Person author = new Person()
+            Person authorA = new Person()
             {
                 Name = "Bob",
                 Age = 42,
+            };
+            Person authorB = new Person()
+            {
+                Name = "Boby",
+                Age = 25,
+            };
+            Person authorC = new Person()
+            {
+                Name = "Baba",
+                Age = 54,
             };
 
             Book book = new Book()
             {
                 Name = "The Great Voyage",
                 PageCount = 300,
-                Author = author,
+                Authors = new List<Person> { authorA, authorB, authorC},
                 FavoriteQuotes = new List<string> { "This is", " very, very", " awesome!"}
             };
 
