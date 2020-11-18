@@ -50,24 +50,17 @@ namespace MetaJson
     public static class MetaJsonSerializer
     {"
 );
+
             const string SPC = "    ";
             foreach (SerializeInvocation invocation in serializeInvocations)
             {
-                string invocationTypeStr = invocation.TypeArg.Symbol.ToString();
-
-                SerializableClass sc = serializableClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
-                if (sc == null)
-                {
-                    context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, invocation.Invocation.GetLocation(), invocationTypeStr));
-                    continue;
-                }
-
+                string invocationTypeStr = invocation.TypeArg.ToString();
 
                 sb.Append($@"{SPC}{SPC}public static string Serialize<T>({invocationTypeStr} obj) where T: {invocationTypeStr}");
                 sb.Append(@"
         {
 ");
-                GenerateMethodBody(sb, sc);
+                GenerateMethodBody(sb, invocation, serializableClasses, context);
                 sb.Append(@"
         }
 
@@ -91,13 +84,52 @@ namespace MetaJson
             context.AddSource("MetaJsonSerializer", SourceText.From(generatedFileSource, Encoding.UTF8));
         }
 
-        void GenerateMethodBody(StringBuilder sb, SerializableClass sc)
+        JsonNode BuildTree(ITypeSymbol symbol, string csObj, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
+        {
+            if (symbol.Kind != SymbolKind.NamedType)
+                return null;
+
+
+            // primitive types
+            string invocationTypeStr = symbol.ToString();
+            switch (invocationTypeStr)
+            {
+                case "int":
+                    return new NumericNode(csObj);
+                case "string":
+                    return new StringNode(csObj);
+                default:
+                    break;
+            }
+
+            // if is serializable class
+            SerializableClass foundClass = knownClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
+            if (foundClass is null)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, symbol.Locations.First(), invocationTypeStr));
+                return null;
+            }
+
+            ObjectNode objectNode = new ObjectNode();
+            foreach (SerializableProperty sp in foundClass.Properties)
+            {
+                JsonNode value = BuildTree(sp.Symbol.Type, $"{csObj}.{sp.Name}", knownClasses, context);
+                objectNode.Properties.Add((sp.Name, value));
+            }
+            return objectNode;
+        }
+
+
+        void GenerateMethodBody(StringBuilder sb, SerializeInvocation invocation, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
         {
             // Create nodes
             List<MethodNode> nodes = new List<MethodNode>();
             nodes.Add(new CsharpTabControlNode(+3));
             nodes.Add(new CSharpLineNode("StringBuilder sb = new StringBuilder();"));
-            nodes.AddRange(GetClassNodes(sc));
+
+            JsonNode jsonTree = BuildTree(invocation.TypeArg, "obj", knownClasses, context);
+            nodes.AddRange(jsonTree.GetNodes());
+            
             nodes.Add(new CSharpLineNode("return sb.ToString();"));
 
 
@@ -111,7 +143,7 @@ namespace MetaJson
                     nodes.RemoveAt(i);
                     --i;
                 }
-                else if (nodes[i] is JsonNode js)
+                else if (nodes[i] is PlainJsonNode js)
                 {
                     js.Value = js.Value.Replace("$t", jsonTab);
                 }
@@ -119,10 +151,10 @@ namespace MetaJson
 
             // Merge json nodes
             List<MethodNode> mergedNodes = new List<MethodNode>();
-            List<JsonNode> streak = new List<JsonNode>();
+            List<PlainJsonNode> streak = new List<PlainJsonNode>();
             foreach (MethodNode node in nodes)
             {
-                if (node is JsonNode js)
+                if (node is PlainJsonNode js)
                 {
                     streak.Add(js);
                 }
@@ -140,7 +172,7 @@ namespace MetaJson
 
             if (streak.Count > 0)
             {
-                mergedNodes.Add(MergeJsonNodes(streak.OfType<JsonNode>()));
+                mergedNodes.Add(MergeJsonNodes(streak.OfType<PlainJsonNode>()));
             }
 
             nodes = mergedNodes;
@@ -148,7 +180,7 @@ namespace MetaJson
             // Convert json to C#
             for (int i = 0; i < nodes.Count; ++i)
             {
-                if (nodes[i] is JsonNode js)
+                if (nodes[i] is PlainJsonNode js)
                 {
                     CSharpNode cs = new CSharpLineNode($"sb.Append(\"{js.Value.Replace("\"", "\\\"")}\");");
                     nodes.RemoveAt(i);
@@ -181,37 +213,10 @@ namespace MetaJson
 
         }
 
-        IEnumerable<MethodNode> GetClassNodes(SerializableClass sc)
-        {
-            yield return new JsonNode("{\\n");
-            yield return new JsonTabControlNode(+1);
-
-            for (int i = 0; i < sc.Properties.Count; ++i)
-            {
-                SerializableProperty sp = sc.Properties[i];
-
-                // Json property name is the class' property name
-                yield return new JsonNode($"$t\"{sp.Name}\": ");
-
-                // Json property value varies depending on its type
-                foreach (MethodNode jsonValueNode in sp.ValueSerializer.GetValueNodes($"obj.{sp.Name}"))
-                    yield return jsonValueNode;
-
-                // If last element, don't add a ','
-                if (i < sc.Properties.Count - 1)
-                    yield return new JsonNode($",\\n");
-                else
-                    yield return new JsonNode($"\\n");
-            }
-
-            yield return new JsonTabControlNode(-1);
-            yield return new JsonNode("}");
-        }
-
-        JsonNode MergeJsonNodes(IEnumerable<JsonNode> nodes)
+        PlainJsonNode MergeJsonNodes(IEnumerable<PlainJsonNode> nodes)
         {
             string combined = String.Join("", nodes.Select(n => n.Value));
-            return new JsonNode(combined);
+            return new PlainJsonNode(combined);
         }
 
         string UpdateTab(string origin, int delta)
@@ -250,16 +255,14 @@ namespace MetaJson
     class SerializableProperty
     {
         public string Name { get; set; }
-        public string ValueType { get; set; }
-        public PropertyDeclarationSyntax Declaration { get; set; }
-        public SerializablePropertyValue ValueSerializer { get; set; }
+        public IPropertySymbol Symbol { get; set; }
 
     }
 
     class SerializeInvocation
     {
         public InvocationExpressionSyntax Invocation { get; set; }
-        public SymbolInfo TypeArg { get; set; }
+        public ITypeSymbol TypeArg { get; set; }
     }
 
     class ClassWalkerState

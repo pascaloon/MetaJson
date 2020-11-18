@@ -34,11 +34,11 @@ namespace MetaJson
         }
     }
 
-    class JsonNode : MethodNode
+    class PlainJsonNode : MethodNode
     {
         public string Value { get; set; } = String.Empty;
 
-        public JsonNode(string value)
+        public PlainJsonNode(string value)
         {
             Value = value;
         }

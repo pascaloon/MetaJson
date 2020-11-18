@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MetaJson
 {
@@ -10,9 +11,6 @@ namespace MetaJson
     {
         public List<SerializableClass> SerializableClasses { get; set; } = new List<SerializableClass>();
         public List<SerializeInvocation> SerializeInvocations { get; set; } = new List<SerializeInvocation>();
-
-        Stack<ClassWalkerState> _currentClassStack = new Stack<ClassWalkerState>();
-        ClassWalkerState _currentClassState;
 
         private readonly SemanticModel _semanticModel;
         private readonly GeneratorExecutionContext _context;
@@ -25,14 +23,15 @@ namespace MetaJson
 
         public override void VisitClassDeclaration(ClassDeclarationSyntax node)
         {
-            _currentClassState = new ClassWalkerState();
             bool isSerializable = false;
+
+            // Start by a quick check
             foreach (AttributeListSyntax attrList in node.AttributeLists)
             {
                 foreach (AttributeSyntax attr in attrList.Attributes)
                 {
                     string name = attr.Name.ToString();
-                    if (name == "Serialize" || name == "MetaJson.Serialize")
+                    if (name.Contains("Serialize"))
                     {
                         isSerializable = true;
                         break;
@@ -42,66 +41,51 @@ namespace MetaJson
                     break;
             }
 
-            if (isSerializable)
+            if (!isSerializable)
             {
-                INamedTypeSymbol type = _semanticModel.GetDeclaredSymbol(node);
-                SerializableClass sc = new SerializableClass()
-                {
-                    Name = node.Identifier.ValueText,
-                    Declaration = node,
-                    Type = type
-                };
-                _currentClassState.CurrentClass = sc;
-                SerializableClasses.Add(sc);
+                base.VisitClassDeclaration(node);
+                return;
             }
 
-            _currentClassStack.Push(_currentClassState);
+            INamedTypeSymbol type = _semanticModel.GetDeclaredSymbol(node);
+
+            // Proper check
+            isSerializable = type.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute"));
+            if (!isSerializable)
+            {
+                base.VisitClassDeclaration(node);
+                return;
+            }
+
+            List<IPropertySymbol> serializableProperties = type.GetMembers()
+                .OfType<IPropertySymbol>()
+                .Where(p => p.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute")))
+                .ToList();
+
+
+            SerializableClass sc = new SerializableClass()
+            {
+                Name = node.Identifier.ValueText,
+                Declaration = node,
+                Type = type
+            };
+
+            foreach (IPropertySymbol serializableProperty in serializableProperties)
+            {
+                // serializableProperty.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as PropertyDeclarationSyntax,
+
+                SerializableProperty sp = new SerializableProperty()
+                {
+                    Name = serializableProperty.Name,
+                    Symbol = serializableProperty,
+                };
+
+                sc.Properties.Add(sp);
+            }
+
+            SerializableClasses.Add(sc);
 
             base.VisitClassDeclaration(node);
-
-            _currentClassStack.Pop();
-            _currentClassState = _currentClassStack.Count > 0 ? _currentClassStack.Peek() : null;
-        }
-
-        public override void VisitPropertyDeclaration(PropertyDeclarationSyntax node)
-        {
-            if (_currentClassState.IsSerializable)
-            {
-                bool isSerializable = false;
-
-                foreach (AttributeListSyntax attributeList in node.AttributeLists)
-                {
-                    foreach (AttributeSyntax attribute in attributeList.Attributes)
-                    {
-                        string name = attribute.Name.ToString();
-                        if (name == "Serialize" || name == "MetaJson.Serialize")
-                        {
-                            isSerializable = true;
-                            SymbolInfo typeArg = _semanticModel.GetSymbolInfo(node.Type);
-                            string typeString = typeArg.Symbol.ToString();
-                            SerializablePropertyValue ser = null;
-                            if (typeString == "string")
-                                ser = new StringSerializablePropertyValue();
-                            else if (typeString == "int")
-                                ser = new NumSerializablePropertyValue();
-                            else
-                                ser = new SimpleSerializablePropertyValue();
-
-                            _currentClassState.CurrentClass.Properties.Add(new SerializableProperty() 
-                            { 
-                                Name = node.Identifier.ValueText,
-                                Declaration = node,
-                                ValueSerializer = ser
-                            });
-
-                            break;
-                        }
-                    }
-                    if (isSerializable)
-                        break;
-                }
-            }
-            base.VisitPropertyDeclaration(node);
         }
 
         public override void VisitInvocationExpression(InvocationExpressionSyntax node)
@@ -119,7 +103,7 @@ namespace MetaJson
                         SerializeInvocations.Add(new SerializeInvocation()
                         {
                             Invocation = node,
-                            TypeArg = argSymbol
+                            TypeArg = argSymbol.Symbol as ITypeSymbol
                         });
                     }
                     else
