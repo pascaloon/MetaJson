@@ -91,7 +91,7 @@ namespace MetaJson
         public override void VisitInvocationExpression(InvocationExpressionSyntax node)
         {
             if (node.Expression is MemberAccessExpressionSyntax memberAccessSyntax
-                && memberAccessSyntax.Expression.ToString().Equals("MetaJsonSerializer"))
+                && memberAccessSyntax.Expression.ToString().Contains("MetaJsonSerializer"))
             {
                 // Calling MetaJsonSerializer static methods
                 if (memberAccessSyntax.Name is GenericNameSyntax generic && generic.Identifier.ValueText.ToString().Equals("Serialize"))

@@ -45,7 +45,7 @@ namespace SampleApp
 
             Console.WriteLine($"output:");
             Console.WriteLine($"--------------------------------");
-            string bookJson = MetaJsonSerializer.Serialize<Book>(book);
+            string bookJson = MetaJson.MetaJsonSerializer.Serialize<Book>(book);
             Console.WriteLine(bookJson);
             Console.WriteLine($"--------------------------------");
         }
