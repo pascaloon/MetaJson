@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace MetaJson
 {
-    class FindClassesAndInvocationsWaler : CSharpSyntaxWalker
+    class FindClassesAndInvocationsWalker : CSharpSyntaxWalker
     {
         public List<SerializableClass> SerializableClasses { get; set; } = new List<SerializableClass>();
         public List<SerializeInvocation> SerializeInvocations { get; set; } = new List<SerializeInvocation>();
@@ -15,7 +15,7 @@ namespace MetaJson
         private readonly SemanticModel _semanticModel;
         private readonly GeneratorExecutionContext _context;
 
-        public FindClassesAndInvocationsWaler(SemanticModel semanticModel, GeneratorExecutionContext context)
+        public FindClassesAndInvocationsWalker(SemanticModel semanticModel, GeneratorExecutionContext context)
         {
             _semanticModel = semanticModel;
             _context = context;

@@ -31,7 +31,7 @@ namespace MetaJson
             foreach (SyntaxTree tree in context.Compilation.SyntaxTrees)
             {
                 SemanticModel semanticModel = context.Compilation.GetSemanticModel(tree);
-                FindClassesAndInvocationsWaler walk = new FindClassesAndInvocationsWaler(semanticModel, context);
+                FindClassesAndInvocationsWalker walk = new FindClassesAndInvocationsWalker(semanticModel, context);
                 walk.Visit(tree.GetRoot());
                 serializableClasses.AddRange(walk.SerializableClasses);
                 serializeInvocations.AddRange(walk.SerializeInvocations);
