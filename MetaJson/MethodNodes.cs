@@ -19,38 +19,22 @@ namespace MetaJson
     class CSharpLineNode : CSharpNode
     {
         public CSharpLineNode(string cSharpCode)
-            : base($"$t{cSharpCode}\r\n")
+            : base($"{cSharpCode}\r\n")
         {
-        }
-    }
-
-    class CsharpTabControlNode : MethodNode
-    {
-        public int Delta { get; set; } = 0;
-
-        public CsharpTabControlNode(int delta)
-        {
-            Delta = delta;
         }
     }
 
     class PlainJsonNode : MethodNode
     {
+        // Required when for when nodes are merged
+        public string CSharpIndent { get; set; } = String.Empty;
+
         public string Value { get; set; } = String.Empty;
 
-        public PlainJsonNode(string value)
+        public PlainJsonNode(string csharpIndent, string value)
         {
+            CSharpIndent = csharpIndent;
             Value = value;
-        }
-    }
-
-    class JsonTabControlNode : MethodNode
-    {
-        public int Delta { get; set; } = 0;
-
-        public JsonTabControlNode(int delta)
-        {
-            Delta = delta;
         }
     }
 }

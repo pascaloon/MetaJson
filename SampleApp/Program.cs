@@ -1,5 +1,6 @@
 ﻿using MetaJson;
 using System;
+using System.Collections.Generic;
 
 namespace SampleApp
 {
@@ -21,6 +22,9 @@ namespace SampleApp
         public int PageCount { get; set; }
         [Serialize]
         public Person Author { get; set; }
+        [Serialize]
+        public IList<string> FavoriteQuotes { get; set; }
+
     }
 
 
@@ -40,7 +44,8 @@ namespace SampleApp
             {
                 Name = "The Great Voyage",
                 PageCount = 300,
-                Author = author
+                Author = author,
+                FavoriteQuotes = new List<string> { "This is", " very, very", " awesome!"}
             };
 
             Console.WriteLine($"output:");

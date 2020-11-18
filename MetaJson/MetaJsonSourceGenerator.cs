@@ -102,52 +102,62 @@ namespace MetaJson
                     break;
             }
 
+
+            
+
             // if is serializable class
             SerializableClass foundClass = knownClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
-            if (foundClass is null)
+            if (foundClass != null)
             {
-                context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, symbol.Locations.First(), invocationTypeStr));
-                return null;
+                ObjectNode objectNode = new ObjectNode();
+                foreach (SerializableProperty sp in foundClass.Properties)
+                {
+                    JsonNode value = BuildTree(sp.Symbol.Type, $"{csObj}.{sp.Name}", knownClasses, context);
+                    objectNode.Properties.Add((sp.Name, value));
+                }
+                return objectNode;
             }
 
-            ObjectNode objectNode = new ObjectNode();
-            foreach (SerializableProperty sp in foundClass.Properties)
+            // list, dictionnary, ...
+
+            // fallback on list
+            INamedTypeSymbol enumerable = null;
+            if (symbol.MetadataName.Equals("IList`1"))
+                enumerable = symbol as INamedTypeSymbol;
+            else 
+                enumerable = symbol.AllInterfaces.FirstOrDefault(i => i.MetadataName.Equals("IList`1"));
+            if (enumerable != null)
             {
-                JsonNode value = BuildTree(sp.Symbol.Type, $"{csObj}.{sp.Name}", knownClasses, context);
-                objectNode.Properties.Add((sp.Name, value));
+                ITypeSymbol listType = enumerable.TypeArguments.First();
+
+                ListNode listNode = new ListNode(csObj);
+                listNode.ElementType = BuildTree(listType, $"{csObj}[i]", knownClasses, context);
+                return listNode;
             }
-            return objectNode;
+
+            // fallback on enumerables?
+
+
+            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, symbol.Locations.First(), invocationTypeStr));
+            return null;
         }
 
 
         void GenerateMethodBody(StringBuilder sb, SerializeInvocation invocation, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
         {
             // Create nodes
+            TreeContext treeContext = new TreeContext();
+            treeContext.IndentCSharp(+3);
+            string ct = treeContext.CSharpIndent;
+
             List<MethodNode> nodes = new List<MethodNode>();
-            nodes.Add(new CsharpTabControlNode(+3));
-            nodes.Add(new CSharpLineNode("StringBuilder sb = new StringBuilder();"));
+            nodes.Add(new CSharpLineNode($"{ct}StringBuilder sb = new StringBuilder();"));
 
             JsonNode jsonTree = BuildTree(invocation.TypeArg, "obj", knownClasses, context);
-            nodes.AddRange(jsonTree.GetNodes());
+            nodes.AddRange(jsonTree.GetNodes(treeContext));
             
-            nodes.Add(new CSharpLineNode("return sb.ToString();"));
-
-
-            // Fix Json Tabs
-            string jsonTab = "";
-            for (int i = 0; i < nodes.Count; ++i)
-            {
-                if (nodes[i] is JsonTabControlNode jstc)
-                {
-                    jsonTab = UpdateTab(jsonTab, jstc.Delta);
-                    nodes.RemoveAt(i);
-                    --i;
-                }
-                else if (nodes[i] is PlainJsonNode js)
-                {
-                    js.Value = js.Value.Replace("$t", jsonTab);
-                }
-            }
+            ct = treeContext.CSharpIndent;
+            nodes.Add(new CSharpLineNode($"{ct}return sb.ToString();"));
 
             // Merge json nodes
             List<MethodNode> mergedNodes = new List<MethodNode>();
@@ -182,23 +192,9 @@ namespace MetaJson
             {
                 if (nodes[i] is PlainJsonNode js)
                 {
-                    CSharpNode cs = new CSharpLineNode($"sb.Append(\"{js.Value.Replace("\"", "\\\"")}\");");
+                    CSharpNode cs = new CSharpLineNode($"{js.CSharpIndent}sb.Append(\"{js.Value.Replace("\"", "\\\"")}\");");
                     nodes.RemoveAt(i);
                     nodes.Insert(i, cs);
-                }
-            }
-
-            // Fix C# Tabs
-            string csharpTab = "";
-            for (int i = 0; i < nodes.Count; ++i)
-            {
-                if (nodes[i] is CsharpTabControlNode cstc)
-                {
-                    csharpTab = UpdateTab(csharpTab, cstc.Delta);
-                }
-                else if (nodes[i] is CSharpNode cs)
-                {
-                    cs.CSharpCode = cs.CSharpCode.Replace("$t", csharpTab);
                 }
             }
 
@@ -216,26 +212,7 @@ namespace MetaJson
         PlainJsonNode MergeJsonNodes(IEnumerable<PlainJsonNode> nodes)
         {
             string combined = String.Join("", nodes.Select(n => n.Value));
-            return new PlainJsonNode(combined);
-        }
-
-        string UpdateTab(string origin, int delta)
-        {
-            if (delta > 0)
-            {
-                for (int i = 0; i < delta; i++)
-                {
-                    origin += "    ";
-                }
-            }
-            else if (delta < 0)
-            {
-                for (int i = 0; i < -delta; i++)
-                {
-                    origin = origin.Remove(0, 4);
-                }
-            }
-            return origin;
+            return new PlainJsonNode(nodes.First().CSharpIndent, combined);
         }
 
 
