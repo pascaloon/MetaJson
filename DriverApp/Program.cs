@@ -35,7 +35,7 @@ namespace DriverApp
                 // Print message for WorkspaceFailed event to help diagnosing project load failures.
                 workspace.WorkspaceFailed += (o, e) => Console.WriteLine(e.Diagnostic.Message);
 
-                var solutionPath = Path.Combine(Assembly.GetExecutingAssembly().Location, @"..\..\..\..\..", "MetaJson.sln");
+                var solutionPath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, @"..\..\..\..\..", "MetaJson.sln"));
                 Console.WriteLine($"Loading solution '{solutionPath}'");
 
                 // Attach progress reporter so we print projects as they are loaded.
