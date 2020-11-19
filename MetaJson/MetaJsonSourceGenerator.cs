@@ -55,36 +55,17 @@ namespace MetaJson
 );
 
             // Serialize method definitions
-            const string SPC = "    ";
+            SerializeMethodGenerator smg = new SerializeMethodGenerator(context, serializableClasses);
             foreach (SerializeInvocation invocation in serializeInvocations)
             {
-                string invocationTypeStr = invocation.TypeArg.ToString();
-
-                sb.Append($@"{SPC}{SPC}public static string Serialize<T>({invocationTypeStr} obj) where T: {invocationTypeStr}");
-                sb.Append(@"
-        {
-");
-                GenerateSerializeMethodBody(sb, invocation, serializableClasses, context);
-                sb.Append(@"
-        }
-
-");
+                smg.GenerateSerializeMethod(sb, invocation);
             }
 
             // Deserialize method definitions
+            DeserializeMethodGenerator dsmg = new DeserializeMethodGenerator(context, serializableClasses);
             foreach (DeserializeInvocation invocation in deserializeInvocations)
             {
-                string invocationTypeStr = invocation.TypeArg.ToString();
-
-                sb.Append($@"{SPC}{SPC}public static {invocationTypeStr} Deserialize<T>(string json) where T: {invocationTypeStr}");
-                sb.Append(@"
-        {
-");
-                GenerateDeserializeMethodBody(sb, invocation, serializableClasses, context);
-                sb.Append(@"
-        }
-
-");
+                dsmg.GenerateDeserializeMethod(sb, invocation);
             }
 
             // Class footer
@@ -104,152 +85,6 @@ namespace MetaJson
             context.AddSource("MetaJsonSerializer", SourceText.From(generatedFileSource, Encoding.UTF8));
         }
 
-        private void GenerateDeserializeMethodBody(StringBuilder sb, DeserializeInvocation invocation, List<SerializableClass> serializableClasses, GeneratorExecutionContext context)
-        {
-            TreeContext treeContext = new TreeContext();
-            treeContext.IndentCSharp(+3);
-            string ct = treeContext.CSharpIndent;
-
-            List<MethodNode> nodes = new List<MethodNode>();
-
-            string invocationTypeStr = invocation.TypeArg.ToString();
-            nodes.Add(new CSharpLineNode($"{ct}return new {invocationTypeStr}();"));
-
-            foreach (CSharpNode node in nodes.OfType<CSharpNode>())
-            {
-                sb.Append(node.CSharpCode);
-            }
-
-        }
-
-        JsonNode BuildTree(ITypeSymbol symbol, string csObj, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
-        {
-            if (symbol.Kind != SymbolKind.NamedType)
-                return null;
-
-            // primitive types
-            switch (symbol.SpecialType)
-            {
-                case SpecialType.System_Int32:
-                    return new NumericNode(csObj);
-                case SpecialType.System_String:
-                    return new StringNode(csObj);
-                default:
-                    break;
-            }
-
-            // if is serializable class
-            string invocationTypeStr = symbol.ToString();
-            SerializableClass foundClass = knownClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
-            if (foundClass != null)
-            {
-                ObjectNode objectNode = new ObjectNode();
-                foreach (SerializableProperty sp in foundClass.Properties)
-                {
-                    JsonNode value = BuildTree(sp.Symbol.Type, $"{csObj}.{sp.Name}", knownClasses, context);
-                    objectNode.Properties.Add((sp.Name, value));
-                }
-                return objectNode;
-            }
-
-            // list, dictionnary, ...
-
-            // fallback on list
-            INamedTypeSymbol enumerable = null;
-            if (symbol.MetadataName.Equals("IList`1"))
-                enumerable = symbol as INamedTypeSymbol;
-            else 
-                enumerable = symbol.AllInterfaces.FirstOrDefault(i => i.MetadataName.Equals("IList`1"));
-            if (enumerable != null)
-            {
-                ITypeSymbol listType = enumerable.TypeArguments.First();
-
-                ListNode listNode = new ListNode(csObj);
-                listNode.ElementType = BuildTree(listType, $"{csObj}[i]", knownClasses, context);
-                return listNode;
-            }
-
-            // fallback on enumerables?
-
-            // If reached here, type isn't supported
-            context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, symbol.Locations.First(), invocationTypeStr));
-            return null;
-        }
-
-
-        void GenerateSerializeMethodBody(StringBuilder sb, SerializeInvocation invocation, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
-        {
-            // Create nodes
-            TreeContext treeContext = new TreeContext();
-            treeContext.IndentCSharp(+3);
-            string ct = treeContext.CSharpIndent;
-
-            List<MethodNode> nodes = new List<MethodNode>();
-            nodes.Add(new CSharpLineNode($"{ct}StringBuilder sb = new StringBuilder();"));
-
-            JsonNode jsonTree = BuildTree(invocation.TypeArg, "obj", knownClasses, context);
-            nodes.AddRange(jsonTree.GetNodes(treeContext));
-            
-            ct = treeContext.CSharpIndent;
-            nodes.Add(new CSharpLineNode($"{ct}return sb.ToString();"));
-
-            // Merge json nodes
-            List<MethodNode> mergedNodes = new List<MethodNode>();
-            List<PlainJsonNode> streak = new List<PlainJsonNode>();
-            foreach (MethodNode node in nodes)
-            {
-                if (node is PlainJsonNode js)
-                {
-                    streak.Add(js);
-                }
-                else
-                {
-                    if (streak.Count > 0)
-                    {
-                        mergedNodes.Add(MergeJsonNodes(streak));
-                        streak.Clear();
-                    }
-                    mergedNodes.Add(node);
-                }
-
-            }
-
-            if (streak.Count > 0)
-            {
-                mergedNodes.Add(MergeJsonNodes(streak.OfType<PlainJsonNode>()));
-            }
-
-            nodes = mergedNodes;
-
-            // Convert json to C#
-            for (int i = 0; i < nodes.Count; ++i)
-            {
-                if (nodes[i] is PlainJsonNode js)
-                {
-                    CSharpNode cs = new CSharpLineNode($"{js.CSharpIndent}sb.Append(\"{js.Value.Replace("\"", "\\\"")}\");");
-                    nodes.RemoveAt(i);
-                    nodes.Insert(i, cs);
-                }
-            }
-
-            // Output as string
-            foreach (MethodNode node in mergedNodes)
-            {
-                if (node is CSharpNode cs)
-                {
-                    sb.Append(cs.CSharpCode);
-                }
-            }
-
-        }
-
-        PlainJsonNode MergeJsonNodes(IEnumerable<PlainJsonNode> nodes)
-        {
-            string combined = String.Join("", nodes.Select(n => n.Value));
-            return new PlainJsonNode(nodes.First().CSharpIndent, combined);
-        }
-
-
         public void Initialize(GeneratorInitializationContext context)
         {
         }
@@ -267,7 +102,6 @@ namespace MetaJson
     {
         public string Name { get; set; }
         public IPropertySymbol Symbol { get; set; }
-
     }
 
     class SerializeInvocation
@@ -280,11 +114,5 @@ namespace MetaJson
     {
         public InvocationExpressionSyntax Invocation { get; set; }
         public ITypeSymbol TypeArg { get; set; }
-    }
-
-    class ClassWalkerState
-    {
-        public SerializableClass CurrentClass { get; set; } = null;
-        public bool IsSerializable => CurrentClass != null;
     }
 }
