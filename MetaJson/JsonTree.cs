@@ -139,33 +139,14 @@ namespace MetaJson
 
         public string IndentCSharp(int delta)
         {
-            CSharpIndent = Indent(CSharpIndent, delta);
+            CSharpIndent = Helpers.Indent(CSharpIndent, delta);
             return CSharpIndent;
         }
 
         public string IndentJson(int delta)
         {
-            JsonIndent = Indent(JsonIndent, delta);
+            JsonIndent = Helpers.Indent(JsonIndent, delta);
             return JsonIndent;
-        }
-
-        string Indent(string origin, int delta)
-        {
-            if (delta > 0)
-            {
-                for (int i = 0; i < delta; i++)
-                {
-                    origin += "    ";
-                }
-            }
-            else if (delta < 0)
-            {
-                for (int i = 0; i < -delta; i++)
-                {
-                    origin = origin.Remove(0, 4);
-                }
-            }
-            return origin;
         }
     }
 }

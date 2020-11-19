@@ -44,6 +44,7 @@ namespace MetaJson
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(@"
 using System;
+using System.Diagnostics;
 using System.Text;
 
 namespace MetaJson

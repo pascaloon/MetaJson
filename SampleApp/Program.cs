@@ -155,26 +155,34 @@ namespace SampleApp
             File.WriteAllText(BookJsonFilePath, bookJson);
         }
 
+
         static void TestDeserialization()
         {
-            Console.WriteLine($"Loading '{BookJsonFilePath}'...");
-            string bookJson = File.ReadAllText(BookJsonFilePath);
+            string author = @"
+{
+    ""Name"": ""Bob"",
+    ""Age"": 42
+}";
+            Person book = MetaJson.MetaJsonSerializer.Deserialize<Person>(author);
 
-            Console.WriteLine("Deserializing...");
-            Book book = MetaJson.MetaJsonSerializer.Deserialize<Book>(bookJson);
-            bool isBookEqual = TestBook.Equals(book);
-            if (isBookEqual)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("SUCCESS !!!");
-            }
-            else
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("ERROR !!!");
-            }
+            //Console.WriteLine($"Loading '{BookJsonFilePath}'...");
+            //string bookJson = File.ReadAllText(BookJsonFilePath);
 
-            Console.ResetColor();
+            //Console.WriteLine("Deserializing...");
+            //Book book = MetaJson.MetaJsonSerializer.Deserialize<Book>(bookJson);
+            //bool isBookEqual = TestBook.Equals(book);
+            //if (isBookEqual)
+            //{
+            //    Console.ForegroundColor = ConsoleColor.Green;
+            //    Console.WriteLine("SUCCESS !!!");
+            //}
+            //else
+            //{
+            //    Console.ForegroundColor = ConsoleColor.Red;
+            //    Console.WriteLine("ERROR !!!");
+            //}
+
+            //Console.ResetColor();
 
         }
 
