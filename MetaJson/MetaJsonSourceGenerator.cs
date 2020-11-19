@@ -26,8 +26,10 @@ namespace MetaJson
     {
         public void Execute(GeneratorExecutionContext context)
         {
+            // Find declared serializable classes and (de)serialization invocations
             List<SerializableClass> serializableClasses = new List<SerializableClass>();
             List<SerializeInvocation> serializeInvocations = new List<SerializeInvocation>();
+            List<DeserializeInvocation> deserializeInvocations = new List<DeserializeInvocation>();
             foreach (SyntaxTree tree in context.Compilation.SyntaxTrees)
             {
                 SemanticModel semanticModel = context.Compilation.GetSemanticModel(tree);
@@ -35,9 +37,10 @@ namespace MetaJson
                 walk.Visit(tree.GetRoot());
                 serializableClasses.AddRange(walk.SerializableClasses);
                 serializeInvocations.AddRange(walk.SerializeInvocations);
+                deserializeInvocations.AddRange(walk.DeserializeInvocations);
             }
 
-            // Create methods!
+            // Start C# generation!
             StringBuilder sb = new StringBuilder();
             sb.AppendLine(@"
 using System;
@@ -51,6 +54,7 @@ namespace MetaJson
     {"
 );
 
+            // Serialize method definitions
             const string SPC = "    ";
             foreach (SerializeInvocation invocation in serializeInvocations)
             {
@@ -60,7 +64,23 @@ namespace MetaJson
                 sb.Append(@"
         {
 ");
-                GenerateMethodBody(sb, invocation, serializableClasses, context);
+                GenerateSerializeMethodBody(sb, invocation, serializableClasses, context);
+                sb.Append(@"
+        }
+
+");
+            }
+
+            // Deserialize method definitions
+            foreach (DeserializeInvocation invocation in deserializeInvocations)
+            {
+                string invocationTypeStr = invocation.TypeArg.ToString();
+
+                sb.Append($@"{SPC}{SPC}public static {invocationTypeStr} Deserialize<T>(string json) where T: {invocationTypeStr}");
+                sb.Append(@"
+        {
+");
+                GenerateDeserializeMethodBody(sb, invocation, serializableClasses, context);
                 sb.Append(@"
         }
 
@@ -84,11 +104,28 @@ namespace MetaJson
             context.AddSource("MetaJsonSerializer", SourceText.From(generatedFileSource, Encoding.UTF8));
         }
 
+        private void GenerateDeserializeMethodBody(StringBuilder sb, DeserializeInvocation invocation, List<SerializableClass> serializableClasses, GeneratorExecutionContext context)
+        {
+            TreeContext treeContext = new TreeContext();
+            treeContext.IndentCSharp(+3);
+            string ct = treeContext.CSharpIndent;
+
+            List<MethodNode> nodes = new List<MethodNode>();
+
+            string invocationTypeStr = invocation.TypeArg.ToString();
+            nodes.Add(new CSharpLineNode($"{ct}return new {invocationTypeStr}();"));
+
+            foreach (CSharpNode node in nodes.OfType<CSharpNode>())
+            {
+                sb.Append(node.CSharpCode);
+            }
+
+        }
+
         JsonNode BuildTree(ITypeSymbol symbol, string csObj, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
         {
             if (symbol.Kind != SymbolKind.NamedType)
                 return null;
-
 
             // primitive types
             switch (symbol.SpecialType)
@@ -100,9 +137,6 @@ namespace MetaJson
                 default:
                     break;
             }
-
-
-            
 
             // if is serializable class
             string invocationTypeStr = symbol.ToString();
@@ -137,13 +171,13 @@ namespace MetaJson
 
             // fallback on enumerables?
 
-
+            // If reached here, type isn't supported
             context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, symbol.Locations.First(), invocationTypeStr));
             return null;
         }
 
 
-        void GenerateMethodBody(StringBuilder sb, SerializeInvocation invocation, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
+        void GenerateSerializeMethodBody(StringBuilder sb, SerializeInvocation invocation, List<SerializableClass> knownClasses, GeneratorExecutionContext context)
         {
             // Create nodes
             TreeContext treeContext = new TreeContext();
@@ -237,6 +271,12 @@ namespace MetaJson
     }
 
     class SerializeInvocation
+    {
+        public InvocationExpressionSyntax Invocation { get; set; }
+        public ITypeSymbol TypeArg { get; set; }
+    }
+
+    class DeserializeInvocation
     {
         public InvocationExpressionSyntax Invocation { get; set; }
         public ITypeSymbol TypeArg { get; set; }

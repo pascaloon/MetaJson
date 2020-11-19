@@ -1,6 +1,8 @@
 ﻿using MetaJson;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 
 namespace SampleApp
 {
@@ -11,6 +13,25 @@ namespace SampleApp
         public string Name { get; set; }
         [Serialize]
         public int Age { get; set; }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Person person && Equals(person);
+        }
+
+        public bool Equals(Person other)
+        {
+            if (other is null)
+                return false;
+
+            if (Name != other.Name)
+                return false;
+
+            if (Age != other.Age)
+                return false;
+
+            return true;
+        }
     }
 
     [Serialize]
@@ -25,15 +46,76 @@ namespace SampleApp
         [Serialize]
         public IList<string> FavoriteQuotes { get; set; }
 
+        public override bool Equals(object obj)
+        {
+            return obj is Book book && Equals(book);
+        }
+
+        public bool Equals(Book other)
+        {
+            if (other is null)
+                return false;
+
+            if (Name != other.Name)
+                return false;
+
+            if (PageCount != other.PageCount)
+                return false;
+
+            if (Authors is null)
+            {
+                if (other.Authors != null)
+                    return false;
+            }
+            else
+            {
+                if (other.Authors is null)
+                    return false;
+
+                if (Authors.Count != other.Authors.Count)
+                    return false;
+
+                for (int i = 0; i < Authors.Count; i++)
+                {
+                    if (!Authors[i].Equals(other.Authors[i]))
+                        return false;
+                }
+            }
+
+            if (FavoriteQuotes is null)
+            {
+                if (other.FavoriteQuotes != null)
+                    return false;
+            }
+            else
+            {
+                if (other.FavoriteQuotes is null)
+                    return false;
+
+                if (FavoriteQuotes.Count != other.FavoriteQuotes.Count)
+                    return false;
+
+                for (int i = 0; i < FavoriteQuotes.Count; i++)
+                {
+                    if (!FavoriteQuotes[i].Equals(other.FavoriteQuotes[i]))
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
     }
 
 
     class Program
     {
-        static void Main(string[] args)
-        {
-            DummySymbol.DoNothing();
+        static string BookJsonFilePath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, @"..", "SampleOutput.json"));
 
+        static Book TestBook;
+
+        static void CreateBook()
+        {
             Person authorA = new Person()
             {
                 Name = "Bob",
@@ -50,19 +132,61 @@ namespace SampleApp
                 Age = 54,
             };
 
-            Book book = new Book()
+            TestBook = new Book()
             {
                 Name = "The Great Voyage",
                 PageCount = 300,
-                Authors = new List<Person> { authorA, authorB, authorC},
-                FavoriteQuotes = new List<string> { "This is", " very, very", " awesome!"}
+                Authors = new List<Person> { authorA, authorB, authorC },
+                FavoriteQuotes = new List<string> { "This is", " very, very", " awesome!" }
             };
+        }
 
-            Console.WriteLine($"output:");
+        static void TestSerialization()
+        {
+            Console.WriteLine("Serializing...");
+            string bookJson = MetaJson.MetaJsonSerializer.Serialize<Book>(TestBook);
+
+            Console.WriteLine($"Serialization Output:");
             Console.WriteLine($"--------------------------------");
-            string bookJson = MetaJson.MetaJsonSerializer.Serialize<Book>(book);
             Console.WriteLine(bookJson);
             Console.WriteLine($"--------------------------------");
+
+            Console.WriteLine($"Saving '{BookJsonFilePath}'...");
+            File.WriteAllText(BookJsonFilePath, bookJson);
+        }
+
+        static void TestDeserialization()
+        {
+            Console.WriteLine($"Loading '{BookJsonFilePath}'...");
+            string bookJson = File.ReadAllText(BookJsonFilePath);
+
+            Console.WriteLine("Deserializing...");
+            Book book = MetaJson.MetaJsonSerializer.Deserialize<Book>(bookJson);
+            bool isBookEqual = TestBook.Equals(book);
+            if (isBookEqual)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("SUCCESS !!!");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("ERROR !!!");
+            }
+
+            Console.ResetColor();
+
+        }
+
+        static void Main(string[] args)
+        {
+            DummySymbol.DoNothing();
+
+            CreateBook();
+
+            TestSerialization();
+
+            TestDeserialization();
         }
     }
 }
