@@ -12,41 +12,29 @@ namespace MetaJson
     class DzObjectNode : DzJsonNode
     {
         public string Type { get; }
-        public string Owner { get; }
         public List<(string, DzJsonNode)> Properties = new List<(string, DzJsonNode)>();
 
-        public DzObjectNode(string type, string owner)
+        public DzObjectNode(string type)
         {
             Type = type;
-            Owner = owner;
-        }
-
-        public static IEnumerable<MethodNode> GetMethodHeaderNodes(DzTreeContext context)
-        {
-            string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}var NULL_SPAN = \"null\".AsSpan();");
         }
 
         public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
         {
             string ct = context.CSharpIndent;
             yield return new CSharpLineNode($"{ct}json = json.TrimStart();");
+            yield return new CSharpLineNode($"{ct}var NULL_SPAN = \"null\".AsSpan();");
             yield return new CSharpLineNode($"{ct}if (json.SequenceEqual(NULL_SPAN))");
-            yield return new CSharpLineNode($"{ct}{{");
             ct = context.IndentCSharp(+1);
-            yield return new CSharpLineNode($"{ct}{Owner} = null;");
+            yield return new CSharpLineNode($"{ct}return null;");
             ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
-            yield return new CSharpLineNode($"{ct}else");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
             string errmsg = "Invalid JSON at position: {content.Length - json.Length}. Expected '{{'";
             yield return new CSharpLineNode($"{ct}if (json[0] != '{{') throw new Exception($\"{errmsg}\");");
             yield return new CSharpLineNode($"{ct}json = json.Slice(1);");
 
             // Parse object properties
 
-            yield return new CSharpLineNode($"{ct}{Owner} = new {Type}();");
+            yield return new CSharpLineNode($"{ct}{Type} obj = new {Type}();");
             yield return new CSharpLineNode($"{ct}while (true)");
             yield return new CSharpLineNode($"{ct}{{");
             ct = context.IndentCSharp(+1);
@@ -90,66 +78,26 @@ namespace MetaJson
 
             ct = context.IndentCSharp(-1);
             yield return new CSharpLineNode($"{ct}}}");
-
-
-
-
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
-
+            yield return new CSharpLineNode($"{ct}return obj;");
 
         }
     }
 
-
-    class DzNumNode : DzJsonNode
+    class DzCallNode : DzJsonNode
     {
-        public string Type { get; }
         public string Owner { get; }
+        public string Invocation { get; }
 
-        public DzNumNode(string type, string owner)
+        public DzCallNode(string owner, string invocation)
         {
-            Type = type;
             Owner = owner;
+            Invocation = invocation;
         }
 
         public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
         {
             string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}json = json.TrimStart();");
-            yield return new CSharpLineNode($"{ct}int length = 0;");
-            yield return new CSharpLineNode($"{ct}while (true)");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
-            yield return new CSharpLineNode($"{ct}if (length >= json.Length) throw new Exception(\"Expected number\");");
-            yield return new CSharpLineNode($"{ct}if (!char.IsDigit(json[length])) break;");
-            yield return new CSharpLineNode($"{ct}++length;");
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
-            yield return new CSharpLineNode($"{ct}var valueStr = json.Slice(0, length).ToString();");
-            yield return new CSharpLineNode($"{ct}{Owner} = {Type}.Parse(valueStr);");
-            yield return new CSharpLineNode($"{ct}json = json.Slice(length);");
-        }
-    }
-
-    class DzStringNode : DzJsonNode
-    {
-        public string Owner { get; }
-
-        public DzStringNode(string owner)
-        {
-            Owner = owner;
-        }
-
-        public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
-        {
-            string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}json = json.TrimStart();");
-            yield return new CSharpLineNode($"{ct}if (json[0] != '\"') throw new Exception(\"Expected string\");");
-            yield return new CSharpLineNode($"{ct}json = json.Slice(1);");
-            yield return new CSharpLineNode($"{ct}int vLength = json.IndexOf('\"');");
-            yield return new CSharpLineNode($"{ct}{Owner} = json.Slice(0, vLength).ToString();");
-            yield return new CSharpLineNode($"{ct}json = json.Slice(1 + vLength);");
+            yield return new CSharpLineNode($"{ct}{Owner} = {Invocation};");
         }
     }
 

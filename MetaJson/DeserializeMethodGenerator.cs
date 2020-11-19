@@ -32,6 +32,19 @@ namespace MetaJson
 ");
         }
 
+        public void GenerateClassResources(StringBuilder sb)
+        {
+            if (_deserializeIntRequired)
+                WriteDeserializeInt(sb);
+            if (_deserializeStringRequired)
+                WriteDeserializeString(sb);
+            foreach (var kvp in _requiredTypeDeserializers)
+            {
+                (_, DzObjectNode node) = (kvp.Key, kvp.Value);
+                WriteDeserializeObject(sb, node);
+            }
+        }
+
         private void GenerateDeserializeMethodBody(StringBuilder sb, DeserializeInvocation invocation)
         {
             DzTreeContext treeContext = new DzTreeContext();
@@ -45,8 +58,6 @@ namespace MetaJson
             ct = treeContext.IndentCSharp(+1);
             nodes.Add(new CSharpLineNode($"{ct}return null;"));
             ct = treeContext.IndentCSharp(-1);
-
-            nodes.AddRange(DzObjectNode.GetMethodHeaderNodes(treeContext));
 
             nodes.Add(new CSharpLineNode($"{ct}{invocationTypeStr} obj;"));
             DzJsonNode dzTree = BuildDzTree(invocation.TypeArg, "obj");
@@ -63,6 +74,71 @@ namespace MetaJson
 
         }
 
+        private bool _deserializeIntRequired = false;
+        private void WriteDeserializeInt(StringBuilder sb)
+        {
+            const string SPC = "    ";
+            sb.Append($@"{SPC}{SPC}private static int DeserializeInt(ref string content, ref ReadOnlySpan<char> json)
+        {{
+            json = json.TrimStart();
+            int length = 0;
+            while (true)
+            {{
+                if (length >= json.Length) throw new Exception(""Expected number"");
+                if (!char.IsDigit(json[length])) break;
+                ++length;
+            }}
+            var valueStr = json.Slice(0, length).ToString();
+            int v = int.Parse(valueStr);
+            json = json.Slice(length);
+            return v;
+        }}
+
+");
+        }
+
+        private bool _deserializeStringRequired = false;
+        private void WriteDeserializeString(StringBuilder sb)
+        {
+            const string SPC = "    ";
+            sb.Append($@"{SPC}{SPC}private static string DeserializeString(ref string content,ref ReadOnlySpan<char> json)
+        {{
+            json = json.TrimStart();
+            if (json[0] != '""') throw new Exception(""Expected string"");
+            json = json.Slice(1);
+            int vLength = json.IndexOf('""');
+            string v = json.Slice(0, vLength).ToString();
+            json = json.Slice(1 + vLength);
+            return v;
+        }}
+
+");
+        }
+
+        private void WriteDeserializeObject(StringBuilder sb, DzObjectNode objNode)
+        {
+            string objectTypeStrValid = objNode.Type.Replace(".", "_");
+
+            const string SPC = "    ";
+            sb.Append($@"{SPC}{SPC}private static {objNode.Type} Deserialize_{objectTypeStrValid}(ref string content,ref ReadOnlySpan<char> json)
+        {{
+");
+            DzTreeContext treeContext = new DzTreeContext();
+            treeContext.IndentCSharp(+3);
+
+            foreach (CSharpNode node in objNode.GetNodes(treeContext).OfType<CSharpNode>())
+            {
+                sb.Append(node.CSharpCode);
+            }
+
+            sb.Append($@"
+        }}
+
+");
+        }
+
+
+        Dictionary<string, DzObjectNode> _requiredTypeDeserializers = new Dictionary<string, DzObjectNode>();
         private DzJsonNode BuildDzTree(ITypeSymbol symbol, string csObj)
         {
             if (symbol.Kind != SymbolKind.NamedType)
@@ -72,9 +148,11 @@ namespace MetaJson
             switch (symbol.SpecialType)
             {
                 case SpecialType.System_Int32:
-                    return new DzNumNode("int", csObj);
+                    _deserializeIntRequired = true;
+                    return new DzCallNode(csObj, "DeserializeInt(ref content, ref json)");
                 case SpecialType.System_String:
-                    return new DzStringNode(csObj);
+                    _deserializeStringRequired = true;
+                    return new DzCallNode(csObj, "DeserializeString(ref content, ref json)");
                 default:
                     break;
             }
@@ -84,13 +162,19 @@ namespace MetaJson
             SerializableClass foundClass = _knownClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
             if (foundClass != null)
             {
-                DzObjectNode objectNode = new DzObjectNode(invocationTypeStr, csObj);
-                foreach (SerializableProperty sp in foundClass.Properties)
+                if (!_requiredTypeDeserializers.ContainsKey(invocationTypeStr))
                 {
-                    DzJsonNode value = BuildDzTree(sp.Symbol.Type, $"{csObj}.{sp.Name}");
-                    objectNode.Properties.Add((sp.Name, value));
+                    DzObjectNode objectNode = new DzObjectNode(invocationTypeStr);
+                    foreach (SerializableProperty sp in foundClass.Properties)
+                    {
+                        DzJsonNode value = BuildDzTree(sp.Symbol.Type, $"obj.{sp.Name}");
+                        objectNode.Properties.Add((sp.Name, value));
+                    }
+
+                    _requiredTypeDeserializers.Add(invocationTypeStr, objectNode);
                 }
-                return objectNode;
+                string validName = invocationTypeStr.Replace(".", "_");
+                return new DzCallNode(csObj, $"Deserialize_{validName}(ref content, ref json)");
             }
 
             // list, dictionnary, ...

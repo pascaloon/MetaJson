@@ -69,6 +69,8 @@ namespace MetaJson
                 dsmg.GenerateDeserializeMethod(sb, invocation);
             }
 
+            dsmg.GenerateClassResources(sb);
+
             // Class footer
             sb.Append(@"
     }

@@ -107,6 +107,14 @@ namespace SampleApp
 
     }
 
+    [Serialize]
+    public class Song
+    {
+        [Serialize]
+        public string Name { get; set; }
+        [Serialize]
+        public Person Singer { get; set; }
+    }
 
     class Program
     {
@@ -155,15 +163,18 @@ namespace SampleApp
             File.WriteAllText(BookJsonFilePath, bookJson);
         }
 
-
         static void TestDeserialization()
         {
-            string author = @"
+            string songStr = @"
 {
-    ""Name"": ""Bob"",
-    ""Age"": 42
+    ""Name"": ""Rock, paper, scissors"",
+    ""Singer"": {
+        ""Name"": ""That Guy"",
+        ""Age"": 53
+    }
 }";
-            Person book = MetaJson.MetaJsonSerializer.Deserialize<Person>(author);
+
+            Song song = MetaJson.MetaJsonSerializer.Deserialize<Song>(songStr);
 
             //Console.WriteLine($"Loading '{BookJsonFilePath}'...");
             //string bookJson = File.ReadAllText(BookJsonFilePath);
