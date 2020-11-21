@@ -155,7 +155,7 @@ namespace MetaJson
             string objectTypeStrValid = listNode.Type.Replace(".", "_").Replace("<", "_").Replace(">", "");
 
             const string SPC = "    ";
-            sb.Append($@"{SPC}{SPC}private static System.Collections.Generic.IList<{listNode.Type}> DeserializeList_{objectTypeStrValid}(ref string content, ref ReadOnlySpan<char> json)
+            sb.Append($@"{SPC}{SPC}private static System.Collections.Generic.List<{listNode.Type}> DeserializeList_{objectTypeStrValid}(ref string content, ref ReadOnlySpan<char> json)
         {{
 ");
             DzTreeContext treeContext = new DzTreeContext();

@@ -114,6 +114,8 @@ namespace SampleApp
         public string Name { get; set; }
         [Serialize]
         public Person Singer { get; set; }
+        [Serialize]
+        public IList<string> Lyrics { get; set; }
     }
 
     class Program
@@ -165,36 +167,24 @@ namespace SampleApp
 
         static void TestDeserialization()
         {
-            string songStr = @"
-{
-    ""Name"": ""Rock, paper, scissors"",
-    ""Singer"": {
-        ""Name"": ""That Guy"",
-        ""Age"": 53
-    }
-}";
+            Console.WriteLine($"Loading '{BookJsonFilePath}'...");
+            string bookJson = File.ReadAllText(BookJsonFilePath);
 
-            Song song = MetaJson.MetaJsonSerializer.Deserialize<Song>(songStr);
+            Console.WriteLine("Deserializing...");
+            Book book = MetaJson.MetaJsonSerializer.Deserialize<Book>(bookJson);
+            bool isBookEqual = TestBook.Equals(book);
+            if (isBookEqual)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("SUCCESS !!!");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("ERROR !!!");
+            }
 
-            //Console.WriteLine($"Loading '{BookJsonFilePath}'...");
-            //string bookJson = File.ReadAllText(BookJsonFilePath);
-
-            //Console.WriteLine("Deserializing...");
-            //Book book = MetaJson.MetaJsonSerializer.Deserialize<Book>(bookJson);
-            //bool isBookEqual = TestBook.Equals(book);
-            //if (isBookEqual)
-            //{
-            //    Console.ForegroundColor = ConsoleColor.Green;
-            //    Console.WriteLine("SUCCESS !!!");
-            //}
-            //else
-            //{
-            //    Console.ForegroundColor = ConsoleColor.Red;
-            //    Console.WriteLine("ERROR !!!");
-            //}
-
-            //Console.ResetColor();
-
+            Console.ResetColor();
         }
 
         static void Main(string[] args)
