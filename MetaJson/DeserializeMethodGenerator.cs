@@ -10,6 +10,7 @@ namespace MetaJson
     {
         private readonly GeneratorExecutionContext _context;
         private readonly IReadOnlyList<SerializableClass> _knownClasses;
+        private readonly HashSet<string> _generatedDeserializationMethods = new HashSet<string>();
 
         public DeserializeMethodGenerator(GeneratorExecutionContext context, IReadOnlyList<SerializableClass> knownClasses)
         {
@@ -20,6 +21,10 @@ namespace MetaJson
         public void GenerateDeserializeMethod(StringBuilder sb, DeserializeInvocation invocation)
         {
             string invocationTypeStr = invocation.TypeArg.ToString();
+            if (_generatedDeserializationMethods.Contains(invocationTypeStr))
+                return;
+            _generatedDeserializationMethods.Add(invocationTypeStr);
+
             const string SPC = "    ";
             sb.Append($@"{SPC}{SPC}public static {invocationTypeStr} Deserialize<T>(string content) where T: {invocationTypeStr}");
             sb.Append(@"

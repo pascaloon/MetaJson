@@ -10,6 +10,7 @@ namespace MetaJson
     {
         private readonly GeneratorExecutionContext _context;
         private readonly IReadOnlyList<SerializableClass> _knownClasses;
+        private readonly HashSet<string> _generatedSerializationMethods = new HashSet<string>();
 
         public SerializeMethodGenerator(GeneratorExecutionContext context, IReadOnlyList<SerializableClass> knownClasses)
         {
@@ -20,6 +21,10 @@ namespace MetaJson
         public void GenerateSerializeMethod(StringBuilder sb, SerializeInvocation invocation)
         {
             string invocationTypeStr = invocation.TypeArg.ToString();
+            if (_generatedSerializationMethods.Contains(invocationTypeStr))
+                return;
+            _generatedSerializationMethods.Add(invocationTypeStr);
+
             const string SPC = "    ";
             sb.Append($@"{SPC}{SPC}public static string Serialize<T>({invocationTypeStr} obj) where T: {invocationTypeStr}");
             sb.Append(@"
