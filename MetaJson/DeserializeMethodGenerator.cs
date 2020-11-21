@@ -84,10 +84,14 @@ namespace MetaJson
             int length = 0;
             while (true)
             {{
-                if (length >= json.Length) throw new Exception(""Expected number"");
-                if (!char.IsDigit(json[length])) break;
+                if (length >= json.Length) 
+                    throw new Exception(""Expected number"");
+                if (!char.IsDigit(json[length]))
+                    break;
                 ++length;
             }}
+            if (length == 0) 
+                throw new Exception(""Expected number"");
             var valueStr = json.Slice(0, length).ToString();
             int v = int.Parse(valueStr);
             json = json.Slice(length);
@@ -101,10 +105,11 @@ namespace MetaJson
         private void WriteDeserializeString(StringBuilder sb)
         {
             const string SPC = "    ";
-            sb.Append($@"{SPC}{SPC}private static string DeserializeString(ref string content,ref ReadOnlySpan<char> json)
+            sb.Append($@"{SPC}{SPC}private static string DeserializeString(ref string content, ref ReadOnlySpan<char> json)
         {{
             json = json.TrimStart();
-            if (json[0] != '""') throw new Exception(""Expected string"");
+            if (json[0] != '""')
+                throw new Exception(""Expected string"");
             json = json.Slice(1);
             int vLength = json.IndexOf('""');
             string v = json.Slice(0, vLength).ToString();
@@ -120,7 +125,7 @@ namespace MetaJson
             string objectTypeStrValid = objNode.Type.Replace(".", "_");
 
             const string SPC = "    ";
-            sb.Append($@"{SPC}{SPC}private static {objNode.Type} Deserialize_{objectTypeStrValid}(ref string content,ref ReadOnlySpan<char> json)
+            sb.Append($@"{SPC}{SPC}private static {objNode.Type} Deserialize_{objectTypeStrValid}(ref string content, ref ReadOnlySpan<char> json)
         {{
 ");
             DzTreeContext treeContext = new DzTreeContext();
