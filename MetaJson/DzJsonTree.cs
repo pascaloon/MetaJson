@@ -78,26 +78,118 @@ namespace MetaJson
 
             ct = context.IndentCSharp(-1);
             yield return new CSharpLineNode($"{ct}}}");
+            yield return new CSharpLineNode($"{ct}json = json.Slice(1);");
             yield return new CSharpLineNode($"{ct}return obj;");
 
         }
     }
 
-    class DzCallNode : DzJsonNode
+    class DzListNode : DzJsonNode
     {
-        public string Owner { get; }
-        public string Invocation { get; }
+        public string Type { get; }
+        public DzJsonNode Property { get; set; }
 
-        public DzCallNode(string owner, string invocation)
+        public DzListNode(string type)
         {
-            Owner = owner;
-            Invocation = invocation;
+            Type = type;
         }
 
         public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
         {
             string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}{Owner} = {Invocation};");
+            yield return new CSharpLineNode($"{ct}json = json.TrimStart();");
+            yield return new CSharpLineNode($"{ct}var NULL_SPAN = \"null\".AsSpan();");
+            yield return new CSharpLineNode($"{ct}if (json.SequenceEqual(NULL_SPAN))");
+            ct = context.IndentCSharp(+1);
+            yield return new CSharpLineNode($"{ct}return null;");
+            ct = context.IndentCSharp(-1);
+            string errmsg = "Invalid JSON at position: {content.Length - json.Length}. Expected '['";
+            yield return new CSharpLineNode($"{ct}if (json[0] != '[') throw new Exception($\"{errmsg}\");");
+            yield return new CSharpLineNode($"{ct}json = json.Slice(1);");
+
+            // Parse list items
+
+            yield return new CSharpLineNode($"{ct}System.Collections.Generic.List<{Type}> obj = new System.Collections.Generic.List<{Type}>();");
+            yield return new CSharpLineNode($"{ct}while (true)");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
+            yield return new CSharpLineNode($"{ct}json = json.TrimStart();");
+            errmsg = "Invalid JSON at position: {content.Length - json.Length}. Expected object content or ']'";
+            yield return new CSharpLineNode($"{ct}if (json.IsEmpty) throw new Exception($\"{errmsg}\");");
+            yield return new CSharpLineNode($"{ct}if (json[0] == ']') break;");
+
+            // list item
+            foreach (MethodNode methodNode in Property.GetNodes(context))
+                yield return methodNode;
+
+            yield return new CSharpLineNode($"{ct}json = json.TrimStart();");
+            yield return new CSharpLineNode($"{ct}if (json[0] == ',') json = json.Slice(1);");
+
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
+            yield return new CSharpLineNode($"{ct}json = json.Slice(1);");
+            yield return new CSharpLineNode($"{ct}return obj;");
+
+        }
+    }
+
+    abstract class DzExpressionNode: DzJsonNode { }
+
+    class DzCallNode : DzExpressionNode
+    {
+        public string Invocation { get; }
+
+        public DzCallNode(string invocation)
+        {
+            Invocation = invocation;
+        }
+
+        public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
+        {
+            yield return new CSharpNode(Invocation);
+        }
+    }
+
+    class DzAppendListNode : DzJsonNode
+    {
+        public string Owner { get; }
+        public DzExpressionNode Expression { get; }
+
+        public DzAppendListNode(string owner, DzExpressionNode expression)
+        {
+            Owner = owner;
+            Expression = expression;
+        }
+
+        public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
+        {
+            string ct = context.CSharpIndent;
+            yield return new CSharpNode($"{ct}{Owner}.Add(");
+            foreach (MethodNode node in Expression.GetNodes(context))
+                yield return node;
+            yield return new CSharpLineNode($");");
+        }
+    }
+
+
+    class DzAssignmentNode : DzJsonNode
+    {
+        public string Owner { get; }
+        public DzExpressionNode Expression { get; }
+
+        public DzAssignmentNode(string owner, DzExpressionNode expression)
+        {
+            Owner = owner;
+            Expression = expression;
+        }
+
+        public override IEnumerable<MethodNode> GetNodes(DzTreeContext context)
+        {
+            string ct = context.CSharpIndent;
+            yield return new CSharpNode($"{ct}{Owner} = ");
+            foreach (MethodNode node in Expression.GetNodes(context))
+                yield return node;
+            yield return new CSharpLineNode($";");
         }
     }
 

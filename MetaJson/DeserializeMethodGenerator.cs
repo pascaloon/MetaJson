@@ -40,8 +40,16 @@ namespace MetaJson
                 WriteDeserializeString(sb);
             foreach (var kvp in _requiredTypeDeserializers)
             {
-                (_, DzObjectNode node) = (kvp.Key, kvp.Value);
-                WriteDeserializeObject(sb, node);
+                (_, DzJsonNode node) = (kvp.Key, kvp.Value);
+                switch (node)
+                {
+                    case DzObjectNode objNode:
+                        WriteDeserializeObject(sb, objNode);
+                        break;
+                    case DzListNode listNode:
+                        WriteDeserializeList(sb, listNode);
+                        break;
+                }
             }
         }
 
@@ -59,10 +67,10 @@ namespace MetaJson
             nodes.Add(new CSharpLineNode($"{ct}return null;"));
             ct = treeContext.IndentCSharp(-1);
 
-            nodes.Add(new CSharpLineNode($"{ct}{invocationTypeStr} obj;"));
+            nodes.Add(new CSharpNode($"{ct}return "));
             DzJsonNode dzTree = BuildDzTree(invocation.TypeArg, "obj");
             nodes.AddRange(dzTree.GetNodes(treeContext));
-            nodes.Add(new CSharpLineNode($"{ct}return obj;"));
+            nodes.Add(new CSharpLineNode($";"));
 
 
             //nodes.Add(new CSharpLineNode($"{ct}return new {invocationTypeStr}();"));
@@ -142,8 +150,29 @@ namespace MetaJson
 ");
         }
 
+        private void WriteDeserializeList(StringBuilder sb, DzListNode listNode)
+        {
+            string objectTypeStrValid = listNode.Type.Replace(".", "_").Replace("<", "_").Replace(">", "");
 
-        Dictionary<string, DzObjectNode> _requiredTypeDeserializers = new Dictionary<string, DzObjectNode>();
+            const string SPC = "    ";
+            sb.Append($@"{SPC}{SPC}private static System.Collections.Generic.IList<{listNode.Type}> DeserializeList_{objectTypeStrValid}(ref string content, ref ReadOnlySpan<char> json)
+        {{
+");
+            DzTreeContext treeContext = new DzTreeContext();
+            treeContext.IndentCSharp(+3);
+
+            foreach (CSharpNode node in listNode.GetNodes(treeContext).OfType<CSharpNode>())
+            {
+                sb.Append(node.CSharpCode);
+            }
+
+            sb.Append($@"
+        }}
+
+");
+        }
+
+        Dictionary<string, DzJsonNode> _requiredTypeDeserializers = new Dictionary<string, DzJsonNode>();
         private DzJsonNode BuildDzTree(ITypeSymbol symbol, string csObj)
         {
             if (symbol.Kind != SymbolKind.NamedType)
@@ -154,10 +183,10 @@ namespace MetaJson
             {
                 case SpecialType.System_Int32:
                     _deserializeIntRequired = true;
-                    return new DzCallNode(csObj, "DeserializeInt(ref content, ref json)");
+                    return new DzCallNode("DeserializeInt(ref content, ref json)");
                 case SpecialType.System_String:
                     _deserializeStringRequired = true;
-                    return new DzCallNode(csObj, "DeserializeString(ref content, ref json)");
+                    return new DzCallNode("DeserializeString(ref content, ref json)");
                 default:
                     break;
             }
@@ -173,31 +202,45 @@ namespace MetaJson
                     foreach (SerializableProperty sp in foundClass.Properties)
                     {
                         DzJsonNode value = BuildDzTree(sp.Symbol.Type, $"obj.{sp.Name}");
-                        objectNode.Properties.Add((sp.Name, value));
+                        if (value is DzExpressionNode expr)
+                        {
+                            DzAssignmentNode assignment = new DzAssignmentNode($"obj.{sp.Name}", expr);
+                            objectNode.Properties.Add((sp.Name, assignment));
+                        }
+                        else throw new Exception("Expected expression for object property assignment!");
                     }
 
                     _requiredTypeDeserializers.Add(invocationTypeStr, objectNode);
                 }
                 string validName = invocationTypeStr.Replace(".", "_");
-                return new DzCallNode(csObj, $"Deserialize_{validName}(ref content, ref json)");
+                return new DzCallNode($"Deserialize_{validName}(ref content, ref json)");
             }
 
             // list, dictionnary, ...
 
             // fallback on list
-            //INamedTypeSymbol enumerable = null;
-            //if (symbol.MetadataName.Equals("IList`1"))
-            //    enumerable = symbol as INamedTypeSymbol;
-            //else
-            //    enumerable = symbol.AllInterfaces.FirstOrDefault(i => i.MetadataName.Equals("IList`1"));
-            //if (enumerable != null)
-            //{
-            //    ITypeSymbol listType = enumerable.TypeArguments.First();
+            INamedTypeSymbol enumerable = null;
+            if (symbol.MetadataName.Equals("IList`1"))
+                enumerable = symbol as INamedTypeSymbol;
+            else
+                enumerable = symbol.AllInterfaces.FirstOrDefault(i => i.MetadataName.Equals("IList`1"));
+            if (enumerable != null)
+            {
+                ITypeSymbol listType = enumerable.TypeArguments.First();
 
-            //    ListNode listNode = new ListNode(csObj);
-            //    listNode.ElementType = BuildTree(listType, $"{csObj}[i]");
-            //    return listNode;
-            //}
+                DzListNode listNode = new DzListNode(listType.ToString());
+                DzJsonNode value = BuildDzTree(listType, $"obj");
+                if (value is DzExpressionNode expr)
+                {
+                    listNode.Property = new DzAppendListNode($"obj", expr);
+                }
+                else throw new Exception("Expected expression for object list append!");
+
+                _requiredTypeDeserializers.Add(invocationTypeStr, listNode);
+
+                string objectTypeStrValid = listNode.Type.Replace(".", "_").Replace("<", "_").Replace(">", "");
+                return new DzCallNode($"DeserializeList_{objectTypeStrValid}(ref content, ref json)");
+            }
 
             // fallback on enumerables?
 
