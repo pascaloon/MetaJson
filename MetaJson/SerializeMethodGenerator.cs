@@ -26,7 +26,10 @@ namespace MetaJson
             _generatedSerializationMethods.Add(invocationTypeStr);
 
             const string SPC = "    ";
-            sb.Append($@"{SPC}{SPC}public static string Serialize<T>({invocationTypeStr} obj) where T: {invocationTypeStr}");
+            string constraint = "";
+            if (invocationTypeStr != "string" && invocationTypeStr != "int")
+                constraint = $" where T: {invocationTypeStr}";
+            sb.Append($@"{SPC}{SPC}public static string Serialize<T>({invocationTypeStr} obj){constraint}");
             sb.Append(@"
         {
 ");

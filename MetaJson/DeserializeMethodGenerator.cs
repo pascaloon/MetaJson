@@ -26,7 +26,10 @@ namespace MetaJson
             _generatedDeserializationMethods.Add(invocationTypeStr);
 
             const string SPC = "    ";
-            sb.Append($@"{SPC}{SPC}public static {invocationTypeStr} Deserialize<T>(string content) where T: {invocationTypeStr}");
+            string constraint = "";
+            if (invocationTypeStr != "string" && invocationTypeStr != "int")
+                constraint = $" where T: {invocationTypeStr}";
+            sb.Append($@"{SPC}{SPC}public static {invocationTypeStr} Deserialize<T>(string content){constraint}");
             sb.Append(@"
         {
 ");
