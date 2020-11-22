@@ -19,6 +19,13 @@ namespace TestProject
         }
 
         [Fact]
+        public void SerializePrimitive_string_null()
+        {
+            string json = MetaJson.MetaJsonSerializer.Serialize<String>(null);
+            Assert.Equal("null", json);
+        }
+
+        [Fact]
         public void SerializePrimitive_int()
         {
             string json = MetaJson.MetaJsonSerializer.Serialize<int>(42);

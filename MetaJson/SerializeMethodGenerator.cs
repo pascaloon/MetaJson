@@ -126,7 +126,7 @@ namespace MetaJson
             SerializableClass foundClass = _knownClasses.FirstOrDefault(c => c.Type.ToString().Equals(invocationTypeStr));
             if (foundClass != null)
             {
-                ObjectNode objectNode = new ObjectNode();
+                ObjectNode objectNode = new ObjectNode(csObj);
                 foreach (SerializableProperty sp in foundClass.Properties)
                 {
                     JsonNode value = BuildTree(sp.Symbol.Type, $"{csObj}.{sp.Name}");

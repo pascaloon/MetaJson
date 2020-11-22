@@ -12,8 +12,11 @@ namespace MetaJson
     class ObjectNode : JsonNode
     {
 
-        public ObjectNode()
+        public string Owner { get; }
+
+        public ObjectNode(string owner)
         {
+            Owner = owner;
         }
 
         public List<(string, JsonNode)> Properties { get; set; } = new List<(string, JsonNode)>();
@@ -21,6 +24,16 @@ namespace MetaJson
         public override IEnumerable<MethodNode> GetNodes(TreeContext context)
         {
             string ct = context.CSharpIndent;
+            yield return new CSharpLineNode($"{ct}if ({Owner} == null)");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
+            yield return new PlainJsonNode(ct, "null");
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
+            yield return new CSharpLineNode($"{ct}else");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
+
             yield return new PlainJsonNode(ct, "{\\n");
             string jt = context.IndentJson(+1);
 
@@ -45,6 +58,8 @@ namespace MetaJson
 
             jt = context.IndentJson(-1);
             yield return new PlainJsonNode(ct, $"{jt}}}");
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
         }
     }
 
@@ -107,10 +122,21 @@ namespace MetaJson
         public override IEnumerable<MethodNode> GetNodes(TreeContext context)
         {
             string ct = context.CSharpIndent;
+            yield return new CSharpLineNode($"{ct}if ({_variable} == null)");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
+            yield return new PlainJsonNode(ct, "null");
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
+            yield return new CSharpLineNode($"{ct}else");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
 
             yield return new PlainJsonNode(ct, "\"");
             yield return new CSharpLineNode($"{ct}sb.Append({_variable});");
             yield return new PlainJsonNode(ct, "\"");
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
         }
     }
 
