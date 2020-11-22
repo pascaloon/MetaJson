@@ -50,17 +50,18 @@ namespace MetaJson
 
             INamedTypeSymbol type = _semanticModel.GetDeclaredSymbol(node);
 
-            // Proper check
-            isSerializable = type.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute"));
-            if (!isSerializable)
-            {
-                base.VisitClassDeclaration(node);
-                return;
-            }
+            // Can't do Proper check if we generate the attribute
+            //isSerializable = type.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute"));
+            //if (!isSerializable)
+            //{
+            //    base.VisitClassDeclaration(node);
+            //    return;
+            //}
 
             List<IPropertySymbol> serializableProperties = type.GetMembers()
                 .OfType<IPropertySymbol>()
-                .Where(p => p.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute")))
+                //.Where(p => p.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute")))
+                .Where(p => p.GetAttributes().Any(a => a.AttributeClass.ToString().Contains("Serialize")))
                 .ToList();
 
 
