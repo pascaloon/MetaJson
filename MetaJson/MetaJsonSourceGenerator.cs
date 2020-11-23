@@ -49,12 +49,12 @@ using System.Text;
 
 namespace MetaJson
 {
-    public static class DummySymbol {public static void DoNothing() {}}
+    internal static class DummySymbol {public static void DoNothing() {}}
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
-    public sealed class SerializeAttribute: Attribute { }
+    internal sealed class SerializeAttribute: Attribute { }
 
-    public static class MetaJsonSerializer
+    internal static class MetaJsonSerializer
     {"
 );
 

@@ -29,7 +29,7 @@ namespace MetaJson
             string constraint = "";
             if (invocationTypeStr != "string" && invocationTypeStr != "int")
                 constraint = $" where T: {invocationTypeStr}";
-            sb.Append($@"{SPC}{SPC}public static {invocationTypeStr} Deserialize<T>(string content){constraint}");
+            sb.Append($@"{SPC}{SPC}internal static {invocationTypeStr} Deserialize<T>(string content){constraint}");
             sb.Append(@"
         {
 ");
