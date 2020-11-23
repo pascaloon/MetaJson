@@ -88,7 +88,7 @@ namespace MetaJson
                 Console.WriteLine(generatedFileSource);
                 Console.WriteLine("----------------------------------------------------------");
             }
-            context.AddSource("MetaJsonSerializer", SourceText.From(generatedFileSource, Encoding.UTF8));
+            context.AddSource("MetaJsonSerializer.g", SourceText.From(generatedFileSource, Encoding.UTF8));
         }
 
         public void Initialize(GeneratorInitializationContext context)
