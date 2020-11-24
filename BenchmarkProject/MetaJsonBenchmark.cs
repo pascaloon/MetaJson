@@ -38,52 +38,61 @@ namespace BenchmarkProject
         [Serialize] public int PageEnd { get; set; }
     }
 
-
-    [MemoryDiagnoser]
-    public class SerializationBenchmark
+    public static class Utils
     {
-        private Book _testBook;
-        public SerializationBenchmark()
+        public static Book GenerateBook(int chapterCount)
         {
-            _testBook = new Book()
+            Book book = new Book()
             {
                 Title = "The Great Voyage",
                 Authors = new List<Person>
                 {
                     new Person { Name = "Author A", Age = 53, County = "United States" },
-                    new Person { Name = "Author B", Age = 47, County = "Canada" },
-                    new Person { Name = "Author C", Age = 47, County = "Canada" },
-                    new Person { Name = "Author D", Age = 47, County = "Canada" },
-                    new Person { Name = "Author E", Age = 47, County = "Canada" },
-                    new Person { Name = "Author F", Age = 47, County = "Canada" },
-                    new Person { Name = "Author G", Age = 47, County = "Canada" },
-                    new Person { Name = "Author H", Age = 47, County = "Canada" },
-                    new Person { Name = "Author I", Age = 47, County = "Canada" },
-                    new Person { Name = "Author J", Age = 47, County = "Canada" },
-                    new Person { Name = "Author K", Age = 47, County = "Canada" },
-                    new Person { Name = "Author L", Age = 47, County = "Canada" },
-                    new Person { Name = "Author M", Age = 47, County = "Canada" },
-                    new Person { Name = "Author N", Age = 47, County = "Canada" },
-                    new Person { Name = "Author O", Age = 47, County = "Canada" },
-                    new Person { Name = "Author P", Age = 47, County = "Canada" },
-                    new Person { Name = "Author Q", Age = 47, County = "Canada" },
                 },
-                Chapters = new List<Chapter>
-                {
-                    new Chapter { Name = "Chapter 1", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 2", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 3", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 4", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 5", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 6", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 7", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 8", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 9", PageBegin = 5, PageEnd = 10},
-                    new Chapter { Name = "Chapter 10", PageBegin = 5, PageEnd = 10},
-                },
+                Chapters = new List<Chapter>(),
                 TotalPageCount = 300,
                 Price = 50
             };
+
+            Random r = new Random();
+            for (int i = 0; i < chapterCount; i++)
+            {
+                book.Chapters.Add(new Chapter()
+                {
+                    Name = GetRandomString(30, r),
+                    PageBegin = r.Next(0, 100),
+                    PageEnd = r.Next(0, 100),
+                });
+            }
+
+            return book;
+        }
+
+        private static string GetRandomString(int size, Random r)
+        {
+            char[] str = new char[size];
+            for (int i = 0; i < 12; i++)
+            {
+                str[i] = (char)r.Next('a', 'z' + 1);
+            }
+
+            return new string(str);
+        }
+    }
+
+
+    [MemoryDiagnoser]
+    public class SerializationBenchmark
+    {
+        [Params(1, 10, 100, 1000)]
+        public int ChaptersCount { get; set; }
+
+        private Book _testBook;
+
+        [GlobalSetup]
+        public void GlobalSetup()
+        {
+            _testBook = Utils.GenerateBook(ChaptersCount);
         }
 
         [Benchmark(Baseline = true)]
@@ -99,15 +108,22 @@ namespace BenchmarkProject
         }
     }
 
-
     [MemoryDiagnoser]
     public class DeserializationBenchmark
     {
+        [Params(1, 10, 100, 1000)]
+        public int ChaptersCount { get; set; }
+
         private string _jsonContent;
-        public DeserializationBenchmark()
+
+        [GlobalSetup]
+        public void GlobalSetup()
         {
-            string filePath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, @"..\..\..\..\..\..\..\..", "DeserializationSample.json"));
-            _jsonContent = File.ReadAllText(filePath);
+            //string filePath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, @"..\..\..\..\..\..\..\..", "DeserializationSample.json"));
+            //_jsonContent = File.ReadAllText(filePath);
+
+            Book book = Utils.GenerateBook(ChaptersCount);
+            _jsonContent = Newtonsoft.Json.JsonConvert.SerializeObject(book);
         }
 
         [Benchmark(Baseline = true)]
