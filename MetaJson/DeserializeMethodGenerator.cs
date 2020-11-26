@@ -29,7 +29,7 @@ namespace MetaJson
             string constraint = "";
             if (invocationTypeStr != "string" && invocationTypeStr != "int")
                 constraint = $" where T: {invocationTypeStr}";
-            sb.Append($@"{SPC}{SPC}internal static {invocationTypeStr} Deserialize<T>(string content){constraint}");
+            sb.Append($@"{SPC}{SPC}internal static void Deserialize<T>(string content, out {invocationTypeStr} obj){constraint}");
             sb.Append(@"
         {
 ");
@@ -69,13 +69,17 @@ namespace MetaJson
 
             List<MethodNode> nodes = new List<MethodNode>();
             string invocationTypeStr = invocation.TypeArg.ToString();
-            nodes.Add(new CSharpLineNode($"{ct}ReadOnlySpan<char> json = content.AsSpan();"));
-            nodes.Add(new CSharpLineNode($"{ct}if (json.Trim().IsEmpty)"));
-            ct = treeContext.IndentCSharp(+1);
-            nodes.Add(new CSharpLineNode($"{ct}return null;"));
-            ct = treeContext.IndentCSharp(-1);
 
-            nodes.Add(new CSharpNode($"{ct}return "));
+            nodes.Add(new CSharpLineNode($"{ct}ReadOnlySpan<char> json = content.AsSpan().TrimStart();"));
+            nodes.Add(new CSharpLineNode($"{ct}if (json.IsEmpty)"));
+            nodes.Add(new CSharpLineNode($"{ct}{{"));
+            ct = treeContext.IndentCSharp(+1);
+            nodes.Add(new CSharpLineNode($"{ct}obj = default({invocationTypeStr});"));
+            nodes.Add(new CSharpLineNode($"{ct}return;"));
+            ct = treeContext.IndentCSharp(-1);
+            nodes.Add(new CSharpLineNode($"{ct}}}"));
+
+            nodes.Add(new CSharpNode($"{ct}obj = "));
             DzJsonNode dzTree = BuildDzTree(invocation.TypeArg, "obj");
             nodes.AddRange(dzTree.GetNodes(treeContext));
             nodes.Add(new CSharpLineNode($";"));
@@ -100,9 +104,7 @@ namespace MetaJson
             int length = 0;
             while (true)
             {{
-                if (length >= json.Length) 
-                    throw new Exception(""Expected number"");
-                if (!char.IsDigit(json[length]))
+                if (length >= json.Length || !char.IsDigit(json[length]))
                     break;
                 ++length;
             }}
@@ -124,6 +126,11 @@ namespace MetaJson
             sb.Append($@"{SPC}{SPC}private static string DeserializeString(ref string content, ref ReadOnlySpan<char> json)
         {{
             json = json.TrimStart();
+            if (json.StartsWith(""null"".AsSpan()))
+            {{
+                json = json.Slice(4);
+                return null;
+            }}
             if (json[0] != '""')
                 throw new Exception(""Expected string"");
             json = json.Slice(1);

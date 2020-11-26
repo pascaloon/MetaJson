@@ -132,7 +132,8 @@ namespace BenchmarkProject
         [Benchmark]
         public Book Deserialize_MetaJson()
         {
-            return MetaJson.MetaJsonSerializer.Deserialize<Book>(_jsonContent);
+            MetaJson.MetaJsonSerializer.Deserialize<Book>(_jsonContent, out Book book);
+            return book;
         }
     }
 }

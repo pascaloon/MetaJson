@@ -79,6 +79,16 @@ namespace MetaJson
         public override IEnumerable<MethodNode> GetNodes(TreeContext context)
         {
             string ct = context.CSharpIndent;
+            yield return new CSharpLineNode($"{ct}if ({_container} == null)");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
+            yield return new PlainJsonNode(ct, "null");
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
+            yield return new CSharpLineNode($"{ct}else");
+            yield return new CSharpLineNode($"{ct}{{");
+            ct = context.IndentCSharp(+1);
+
             yield return new PlainJsonNode(ct, "[\\n");
             context.IndentJson(+1);
             string jt = context.JsonIndent;
@@ -106,6 +116,9 @@ namespace MetaJson
 
             jt = context.IndentJson(-1);
             yield return new PlainJsonNode(ct, $"{jt}]");
+
+            ct = context.IndentCSharp(-1);
+            yield return new CSharpLineNode($"{ct}}}");
 
         }
     }

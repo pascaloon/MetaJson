@@ -129,7 +129,7 @@ namespace MetaJson
 
         private void CreateDeserializeInvocation(InvocationExpressionSyntax node, GenericNameSyntax generic)
         {
-            if (node.ArgumentList.Arguments.Count == 1  && generic.TypeArgumentList.Arguments.Count == 1)
+            if (node.ArgumentList.Arguments.Count == 2  && generic.TypeArgumentList.Arguments.Count == 1)
             {
                 TypeSyntax type = generic.TypeArgumentList.Arguments.First();
                 SymbolInfo argSymbol = _semanticModel.GetSymbolInfo(type);

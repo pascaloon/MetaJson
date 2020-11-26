@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Xunit;
 
 namespace TestProject
@@ -29,8 +30,7 @@ namespace TestProject
         [Fact]
         public void SerializeObject_null()
         {
-            SimpleObj nullObject = null;
-            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(nullObject);
+            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(null as SimpleObj);
             Assert.Equal("null", json);
         }
 
@@ -41,18 +41,38 @@ namespace TestProject
             string json = MetaJson.MetaJsonSerializer.Serialize<EmptyObj>(emptyObj);
             Assert.Equal("{\n}", json);
         }
-    }
 
-    [MetaJson.Serialize]
-    class SimpleObj
-    {
-        [MetaJson.Serialize]
-        public string PropertyA { get; set; }
-    }
+        [Fact]
+        public void SerializeObject_defaultProperties()
+        {
+            SimpleObj obj = new SimpleObj();
+            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(obj);
+            obj = Newtonsoft.Json.JsonConvert.DeserializeObject<SimpleObj>(json);
+            obj.VerifyPropertiesAreDefaulted();
+        }
 
-    [MetaJson.Serialize]
-    class EmptyObj
-    {
-    }
+        [Fact]
+        public void SerializeObject_equality()
+        {
+            SimpleObj obj = new SimpleObj()
+            {
+                PropertyString = "Value String",
+                PropertyInt = 42,
+                PropertyObj = new SimpleSubObj { PropertyString = "Subobject String Value" },
+                PropertyListString = new List<string> { "String Value 1", "String Value 2", "String Value3" },
+                PropertyListInt = new List<int> { 5, 6, 7 },
+                PropertyListObj = new List<SimpleSubObj> 
+                {
+                    new SimpleSubObj { PropertyString = "Subobject String Value 1" },
+                    new SimpleSubObj { PropertyString = "Subobject String Value 2" },
+                    new SimpleSubObj { PropertyString = "Subobject String Value 3" }
+                }
+            };
+            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(obj);
+            SimpleObj obj2 = Newtonsoft.Json.JsonConvert.DeserializeObject<SimpleObj>(json);
 
+            obj.VerifyEqualsTo(obj2);
+
+        }
+    }
 }
