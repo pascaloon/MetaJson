@@ -9,9 +9,13 @@ namespace MetaJson
         public abstract IEnumerable<MethodNode> GetNodes(TreeContext context);
     }
 
-    class ObjectNode : JsonNode
+    abstract class NullableNode : JsonNode
     {
+        public bool CanBeNull { get; set; } = true;
+    }
 
+    class ObjectNode : NullableNode
+    {
         public string Owner { get; }
 
         public ObjectNode(string owner)
@@ -24,15 +28,18 @@ namespace MetaJson
         public override IEnumerable<MethodNode> GetNodes(TreeContext context)
         {
             string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}if ({Owner} == null)");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
-            yield return new PlainJsonNode(ct, "null");
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
-            yield return new CSharpLineNode($"{ct}else");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
+            if (CanBeNull)
+            {
+                yield return new CSharpLineNode($"{ct}if ({Owner} == null)");
+                yield return new CSharpLineNode($"{ct}{{");
+                ct = context.IndentCSharp(+1);
+                yield return new PlainJsonNode(ct, "null");
+                ct = context.IndentCSharp(-1);
+                yield return new CSharpLineNode($"{ct}}}");
+                yield return new CSharpLineNode($"{ct}else");
+                yield return new CSharpLineNode($"{ct}{{");
+                ct = context.IndentCSharp(+1);
+            }
 
             yield return new PlainJsonNode(ct, "{\\n");
             string jt = context.IndentJson(+1);
@@ -58,12 +65,15 @@ namespace MetaJson
 
             jt = context.IndentJson(-1);
             yield return new PlainJsonNode(ct, $"{jt}}}");
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
+            if (CanBeNull)
+            {
+                ct = context.IndentCSharp(-1);
+                yield return new CSharpLineNode($"{ct}}}");
+            }
         }
     }
 
-    class ListNode : JsonNode
+    class ListNode : NullableNode
     {
         private readonly string _container;
 
@@ -79,15 +89,18 @@ namespace MetaJson
         public override IEnumerable<MethodNode> GetNodes(TreeContext context)
         {
             string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}if ({_container} == null)");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
-            yield return new PlainJsonNode(ct, "null");
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
-            yield return new CSharpLineNode($"{ct}else");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
+            if (CanBeNull)
+            {
+                yield return new CSharpLineNode($"{ct}if ({_container} == null)");
+                yield return new CSharpLineNode($"{ct}{{");
+                ct = context.IndentCSharp(+1);
+                yield return new PlainJsonNode(ct, "null");
+                ct = context.IndentCSharp(-1);
+                yield return new CSharpLineNode($"{ct}}}");
+                yield return new CSharpLineNode($"{ct}else");
+                yield return new CSharpLineNode($"{ct}{{");
+                ct = context.IndentCSharp(+1);
+            }
 
             yield return new PlainJsonNode(ct, "[\\n");
             context.IndentJson(+1);
@@ -117,13 +130,16 @@ namespace MetaJson
             jt = context.IndentJson(-1);
             yield return new PlainJsonNode(ct, $"{jt}]");
 
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
+            if (CanBeNull)
+            {
+                ct = context.IndentCSharp(-1);
+                yield return new CSharpLineNode($"{ct}}}");
+            }
 
         }
     }
 
-    class StringNode: JsonNode
+    class StringNode: NullableNode
     {
         private readonly string _variable;
 
@@ -135,21 +151,28 @@ namespace MetaJson
         public override IEnumerable<MethodNode> GetNodes(TreeContext context)
         {
             string ct = context.CSharpIndent;
-            yield return new CSharpLineNode($"{ct}if ({_variable} == null)");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
-            yield return new PlainJsonNode(ct, "null");
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
-            yield return new CSharpLineNode($"{ct}else");
-            yield return new CSharpLineNode($"{ct}{{");
-            ct = context.IndentCSharp(+1);
+            if (CanBeNull)
+            {
+                yield return new CSharpLineNode($"{ct}if ({_variable} == null)");
+                yield return new CSharpLineNode($"{ct}{{");
+                ct = context.IndentCSharp(+1);
+                yield return new PlainJsonNode(ct, "null");
+                ct = context.IndentCSharp(-1);
+                yield return new CSharpLineNode($"{ct}}}");
+                yield return new CSharpLineNode($"{ct}else");
+                yield return new CSharpLineNode($"{ct}{{");
+                ct = context.IndentCSharp(+1);
+            }
 
             yield return new PlainJsonNode(ct, "\"");
             yield return new CSharpLineNode($"{ct}sb.Append({_variable});");
             yield return new PlainJsonNode(ct, "\"");
-            ct = context.IndentCSharp(-1);
-            yield return new CSharpLineNode($"{ct}}}");
+
+            if (CanBeNull)
+            {
+                ct = context.IndentCSharp(-1);
+                yield return new CSharpLineNode($"{ct}}}");
+            }
         }
     }
 

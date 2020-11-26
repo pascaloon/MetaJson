@@ -51,8 +51,13 @@ namespace MetaJson
 {
     internal static class DummySymbol {public static void DoNothing() {}}
 
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property)]
     internal sealed class SerializeAttribute: Attribute { }
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
+    internal sealed class NotNull: Attribute { }
+    [AttributeUsage(AttributeTargets.Property)]
+    internal sealed class ArrayItemNotNull: Attribute { }
 
     internal static class MetaJsonSerializer
     {"
@@ -99,15 +104,18 @@ namespace MetaJson
     class SerializableClass
     {
         public string Name { get; set; }
-        public ClassDeclarationSyntax Declaration { get; set; }
+        public TypeDeclarationSyntax Declaration { get; set; }
         public List<SerializableProperty> Properties { get; set; } = new List<SerializableProperty>();
         public INamedTypeSymbol Type { get; set; }
+        public bool CanBeNull { get; set; }
     }
 
     class SerializableProperty
     {
         public string Name { get; set; }
         public IPropertySymbol Symbol { get; set; }
+        public bool CanBeNull { get; set; }
+        public bool ArrayItemCanBeNull { get; set; }
     }
 
     class SerializeInvocation

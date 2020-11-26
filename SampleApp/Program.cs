@@ -6,12 +6,13 @@ using System.Reflection;
 
 namespace SampleApp
 {
+
     [Serialize]
     public class Person
     {
-        [Serialize]
+        [NotNull, Serialize]
         public string Name { get; set; }
-        [Serialize]
+        [NotNull, Serialize]
         public int Age { get; set; }
 
         public override bool Equals(object obj)
@@ -37,13 +38,13 @@ namespace SampleApp
     [Serialize]
     public class Book
     {
-        [Serialize]
+        [NotNull, Serialize]
         public string Name { get; set; }
         [Serialize]
         public int PageCount { get; set; }
-        [Serialize]
+        [NotNull, ArrayItemNotNull, Serialize]
         public List<Person> Authors { get; set; }
-        [Serialize]
+        [NotNull, ArrayItemNotNull, Serialize]
         public IList<string> FavoriteQuotes { get; set; }
 
         public override bool Equals(object obj)
@@ -110,11 +111,11 @@ namespace SampleApp
     [Serialize]
     public class Song
     {
-        [Serialize]
+        [NotNull, Serialize]
         public string Name { get; set; }
-        [Serialize]
+        [NotNull, Serialize]
         public Person Singer { get; set; }
-        [Serialize]
+        [NotNull, Serialize]
         public IList<string> Lyrics { get; set; }
     }
 

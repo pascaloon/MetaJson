@@ -127,9 +127,14 @@ namespace MetaJson
             if (foundClass != null)
             {
                 ObjectNode objectNode = new ObjectNode(csObj);
+                objectNode.CanBeNull = foundClass.CanBeNull;
                 foreach (SerializableProperty sp in foundClass.Properties)
                 {
                     JsonNode value = BuildTree(sp.Symbol.Type, $"{csObj}.{sp.Name}");
+                    if (value is NullableNode nn)
+                        nn.CanBeNull = sp.CanBeNull;
+                    if (value is ListNode ln && ln.ElementType is NullableNode lnn)
+                        lnn.CanBeNull = lnn.CanBeNull && sp.ArrayItemCanBeNull;
                     objectNode.Properties.Add((sp.Name, value));
                 }
                 return objectNode;
