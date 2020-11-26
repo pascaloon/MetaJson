@@ -119,9 +119,6 @@ namespace BenchmarkProject
         [GlobalSetup]
         public void GlobalSetup()
         {
-            //string filePath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, @"..\..\..\..\..\..\..\..", "DeserializationSample.json"));
-            //_jsonContent = File.ReadAllText(filePath);
-
             Book book = Utils.GenerateBook(ChaptersCount);
             _jsonContent = Newtonsoft.Json.JsonConvert.SerializeObject(book);
         }
