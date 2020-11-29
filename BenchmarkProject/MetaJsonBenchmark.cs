@@ -104,7 +104,7 @@ namespace BenchmarkProject
         [Benchmark]
         public string Serialize_MetaJson()
         {
-            return MetaJson.MetaJsonSerializer.Serialize<Book>(_testBook);
+            return MetaJson.MetaJsonSerializer.Serialize(_testBook);
         }
     }
 
@@ -132,7 +132,7 @@ namespace BenchmarkProject
         [Benchmark]
         public Book Deserialize_MetaJson()
         {
-            MetaJson.MetaJsonSerializer.Deserialize<Book>(_jsonContent, out Book book);
+            MetaJson.MetaJsonSerializer.Deserialize(_jsonContent, out Book book);
             return book;
         }
     }
