@@ -112,9 +112,9 @@ namespace MetaJson
                 && memberAccessSyntax.Expression.ToString().Contains("MetaJsonSerializer"))
             {
                 // Calling MetaJsonSerializer static methods
-                if (memberAccessSyntax.Name is GenericNameSyntax generic && generic.Identifier.ValueText.ToString().Equals("Serialize"))
+                if (memberAccessSyntax.Name is IdentifierNameSyntax id && id.Identifier.ValueText.ToString().Equals("Serialize"))
                 {
-                    CreateSerializeInvocation(node, generic);
+                    CreateSerializeInvocation(node);
                 }
                 else if (memberAccessSyntax.Name is GenericNameSyntax generic2 && generic2.Identifier.ValueText.ToString().Equals("Deserialize"))
                 {
@@ -125,17 +125,47 @@ namespace MetaJson
             base.VisitInvocationExpression(node);
         }
 
-        private void CreateSerializeInvocation(InvocationExpressionSyntax node, GenericNameSyntax generic)
+        private void CreateSerializeInvocation(InvocationExpressionSyntax node)
         {
-            if (node.ArgumentList.Arguments.Count == 1 && generic.TypeArgumentList.Arguments.Count == 1)
+            if (node.ArgumentList.Arguments.Count == 1)
             {
-                TypeSyntax type = generic.TypeArgumentList.Arguments.First();
-                SymbolInfo argSymbol = _semanticModel.GetSymbolInfo(type);
-                SerializeInvocations.Add(new SerializeInvocation()
+                ArgumentSyntax arg = node.ArgumentList.Arguments.First();
+                if (arg.Expression is IdentifierNameSyntax ins)
                 {
-                    Invocation = node,
-                    TypeArg = argSymbol.Symbol as ITypeSymbol
-                });
+                    ITypeSymbol argType = null;
+                    ISymbol argSymbol = _semanticModel.GetSymbolInfo(ins).Symbol;
+                    if (argSymbol is IFieldSymbol ifs)
+                    {
+                        argType = ifs.Type;
+                    } 
+                    else if (argSymbol is ILocalSymbol ils)
+                    {
+                        argType = ils.Type;
+                    }
+                    else if (argSymbol is IParameterSymbol ips)
+                    {
+                        argType = ips.Type;
+                    }
+
+                    if (argType != null)
+                    {
+                        SerializeInvocations.Add(new SerializeInvocation()
+                        {
+                            Invocation = node,
+                            TypeArg = argType
+                        });
+                    }
+                    else
+                    {
+                        // error
+                    }
+
+                }
+                else
+                {
+                    // error
+                }
+
             }
             else
             {

@@ -70,6 +70,8 @@ namespace MetaJson
                 smg.GenerateSerializeMethod(sb, invocation);
             }
 
+            smg.GenerateStubs(sb);
+
             // Deserialize method definitions
             DeserializeMethodGenerator dsmg = new DeserializeMethodGenerator(context, serializableClasses);
             foreach (DeserializeInvocation invocation in deserializeInvocations)

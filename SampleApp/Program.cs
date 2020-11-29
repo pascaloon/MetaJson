@@ -152,10 +152,15 @@ namespace SampleApp
             };
         }
 
+        struct Wrapper
+	    {
+            public Book Book;
+	    }   
+
         static void TestSerialization()
         {
             Console.WriteLine("Serializing...");
-            string bookJson = MetaJson.MetaJsonSerializer.Serialize<Book>(TestBook);
+            string bookJson = MetaJson.MetaJsonSerializer.Serialize(TestBook);
 
             Console.WriteLine($"Serialization Output:");
             Console.WriteLine($"--------------------------------");

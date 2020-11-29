@@ -26,10 +26,7 @@ namespace MetaJson
             _generatedSerializationMethods.Add(invocationTypeStr);
 
             const string SPC = "    ";
-            string constraint = "";
-            if (invocationTypeStr != "string" && invocationTypeStr != "int")
-                constraint = $" where T: {invocationTypeStr}";
-            sb.Append($@"{SPC}{SPC}internal static string Serialize<T>({invocationTypeStr} obj){constraint}");
+            sb.Append($@"{SPC}{SPC}internal static string Serialize({invocationTypeStr} obj)");
             sb.Append(@"
         {
 ");
@@ -170,5 +167,19 @@ namespace MetaJson
             return new PlainJsonNode(nodes.First().CSharpIndent, combined);
         }
 
+        public void GenerateStubs(StringBuilder sb)
+        {
+            foreach (SerializableClass sc in _knownClasses)
+            {
+                string typeStr = sc.Type.ToString();
+                if (_generatedSerializationMethods.Contains(typeStr))
+                    continue;
+
+                // missing serialization method, create a stub one for intellisense
+                const string SPC = "    ";
+                sb.AppendLine($@"{SPC}{SPC}internal static string Serialize({typeStr} obj) {{ return String.Empty; }}");
+
+            }
+        }
     }
 }
