@@ -116,9 +116,9 @@ namespace MetaJson
                 {
                     CreateSerializeInvocation(node);
                 }
-                else if (memberAccessSyntax.Name is GenericNameSyntax generic2 && generic2.Identifier.ValueText.ToString().Equals("Deserialize"))
+                else if (memberAccessSyntax.Name is IdentifierNameSyntax id2 && id2.Identifier.ValueText.ToString().Equals("Deserialize"))
                 {
-                    CreateDeserializeInvocation(node, generic2);
+                    CreateDeserializeInvocation(node);
                 }
             }
 
@@ -173,17 +173,68 @@ namespace MetaJson
             }
         }
 
-        private void CreateDeserializeInvocation(InvocationExpressionSyntax node, GenericNameSyntax generic)
+        private void CreateDeserializeInvocation(InvocationExpressionSyntax node)
         {
-            if (node.ArgumentList.Arguments.Count == 2  && generic.TypeArgumentList.Arguments.Count == 1)
+            if (node.ArgumentList.Arguments.Count == 2)
             {
-                TypeSyntax type = generic.TypeArgumentList.Arguments.First();
-                SymbolInfo argSymbol = _semanticModel.GetSymbolInfo(type);
-                DeserializeInvocations.Add(new DeserializeInvocation()
+                ArgumentSyntax secondArg = node.ArgumentList.Arguments[1];
+                if (secondArg.RefKindKeyword.ValueText == "out")
                 {
-                    Invocation = node,
-                    TypeArg = argSymbol.Symbol as ITypeSymbol
-                });
+                    if (secondArg.Expression is IdentifierNameSyntax ins)
+                    {
+                        ITypeSymbol argType = null;
+                        ISymbol argSymbol = _semanticModel.GetSymbolInfo(ins).Symbol;
+                        if (argSymbol is IFieldSymbol ifs)
+                        {
+                            argType = ifs.Type;
+                        }
+                        else if (argSymbol is ILocalSymbol ils)
+                        {
+                            argType = ils.Type;
+                        }
+                        else if (argSymbol is IParameterSymbol ips)
+                        {
+                            argType = ips.Type;
+                        }
+
+                        if (argType != null)
+                        {
+                            DeserializeInvocations.Add(new DeserializeInvocation()
+                            {
+                                Invocation = node,
+                                TypeArg = argType
+                            });
+                        }
+                        else
+                        {
+                            // error
+                        }
+                    }
+                    else if (secondArg.Expression is DeclarationExpressionSyntax des)
+                    {
+                        ITypeSymbol argType = _semanticModel.GetSymbolInfo(des.Type).Symbol as ITypeSymbol;
+                        if (argType != null)
+                        {
+                            DeserializeInvocations.Add(new DeserializeInvocation()
+                            {
+                                Invocation = node,
+                                TypeArg = argType
+                            });
+                        }
+                        else
+                        {
+                            // error
+                        }
+                    }
+                    else
+                    {
+                        // error
+                    }
+                }
+                else
+                {
+                    // error
+                }
             }
             else
             {

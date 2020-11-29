@@ -62,6 +62,9 @@ namespace MetaJson
     internal static class MetaJsonSerializer
     {"
 );
+            sb.AppendLine(@"
+        #region SERIALIZATION
+");
 
             // Serialize method definitions
             SerializeMethodGenerator smg = new SerializeMethodGenerator(context, serializableClasses);
@@ -72,6 +75,14 @@ namespace MetaJson
 
             smg.GenerateStubs(sb);
 
+            sb.AppendLine(@"
+        #endregion
+");
+            sb.AppendLine(@"
+        #region DESERIALIZATION
+");
+
+
             // Deserialize method definitions
             DeserializeMethodGenerator dsmg = new DeserializeMethodGenerator(context, serializableClasses);
             foreach (DeserializeInvocation invocation in deserializeInvocations)
@@ -79,7 +90,11 @@ namespace MetaJson
                 dsmg.GenerateDeserializeMethod(sb, invocation);
             }
 
+            dsmg.GenerateStubs(sb);
             dsmg.GenerateClassResources(sb);
+
+            sb.AppendLine(@"
+        #endregion");
 
             // Class footer
             sb.Append(@"

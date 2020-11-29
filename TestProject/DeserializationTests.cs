@@ -12,35 +12,35 @@ namespace TestProject
         [Fact]
         public void DeserializePrimitive_string()
         {
-            MetaJson.MetaJsonSerializer.Deserialize<String>("\"Hello!\"", out string obj);
+            MetaJson.MetaJsonSerializer.Deserialize("\"Hello!\"", out string obj);
             Assert.Equal("Hello!", obj);
         }
 
         [Fact]
         public void DeserializePrimitive_string_null()
         {
-            MetaJson.MetaJsonSerializer.Deserialize<String>("null", out string obj);
+            MetaJson.MetaJsonSerializer.Deserialize("null", out string obj);
             Assert.Null(obj);
         }
 
         [Fact]
         public void DeserializePrimitive_int()
         {
-            MetaJson.MetaJsonSerializer.Deserialize<int>("42", out int obj);
+            MetaJson.MetaJsonSerializer.Deserialize("42", out int obj);
             Assert.Equal(42, obj);
         }
 
         [Fact]
         public void DeserializeObject_null()
         {
-            MetaJson.MetaJsonSerializer.Deserialize<SimpleObj>("null", out SimpleObj obj);
+            MetaJson.MetaJsonSerializer.Deserialize("null", out SimpleObj obj);
             Assert.Null(obj);
         }
 
         [Fact]
         public void DeserializeObject_empty()
         {
-            MetaJson.MetaJsonSerializer.Deserialize<EmptyObj>("{}", out EmptyObj obj);
+            MetaJson.MetaJsonSerializer.Deserialize("{}", out EmptyObj obj);
             Assert.NotNull(obj);
         }
 
@@ -49,7 +49,7 @@ namespace TestProject
         {
             SimpleObj obj = new SimpleObj();
             string json = Newtonsoft.Json.JsonConvert.SerializeObject(obj);
-            MetaJson.MetaJsonSerializer.Deserialize<SimpleObj>(json, out SimpleObj obj2);
+            MetaJson.MetaJsonSerializer.Deserialize(json, out SimpleObj obj2);
             obj2.VerifyPropertiesAreDefaulted();
         }
 
@@ -72,7 +72,7 @@ namespace TestProject
             };
 
             string json = Newtonsoft.Json.JsonConvert.SerializeObject(obj);
-            MetaJson.MetaJsonSerializer.Deserialize<SimpleObj>(json, out SimpleObj obj2);
+            MetaJson.MetaJsonSerializer.Deserialize(json, out SimpleObj obj2);
 
             obj.VerifyEqualsTo(obj2);
 

@@ -26,10 +26,7 @@ namespace MetaJson
             _generatedDeserializationMethods.Add(invocationTypeStr);
 
             const string SPC = "    ";
-            string constraint = "";
-            if (invocationTypeStr != "string" && invocationTypeStr != "int")
-                constraint = $" where T: {invocationTypeStr}";
-            sb.Append($@"{SPC}{SPC}internal static void Deserialize<T>(string content, out {invocationTypeStr} obj){constraint}");
+            sb.Append($@"{SPC}{SPC}internal static void Deserialize(string content, out {invocationTypeStr} obj)");
             sb.Append(@"
         {
 ");
@@ -262,6 +259,21 @@ namespace MetaJson
             // If reached here, type isn't supported
             _context.ReportDiagnostic(Diagnostic.Create(DiagnosticDescriptors.ClassNotSerializable, symbol.Locations.First(), invocationTypeStr));
             return null;
+        }
+
+        public void GenerateStubs(StringBuilder sb)
+        {
+            foreach (SerializableClass sc in _knownClasses)
+            {
+                string typeStr = sc.Type.ToString();
+                if (_generatedDeserializationMethods.Contains(typeStr))
+                    continue;
+
+                // missing serialization method, create a stub one for intellisense
+                const string SPC = "    ";
+                sb.AppendLine($@"{SPC}{SPC}internal static void Deserialize(string content, out {typeStr} obj) {{obj = default({typeStr});}}");
+
+            }
         }
 
     }

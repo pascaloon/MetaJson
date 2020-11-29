@@ -177,7 +177,7 @@ namespace SampleApp
             string bookJson = File.ReadAllText(BookJsonFilePath);
 
             Console.WriteLine("Deserializing...");
-            MetaJson.MetaJsonSerializer.Deserialize<Book>(bookJson, out Book book);
+            MetaJson.MetaJsonSerializer.Deserialize(bookJson, out Book book);
             bool isBookEqual = TestBook.Equals(book);
             if (isBookEqual)
             {
