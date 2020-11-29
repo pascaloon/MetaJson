@@ -9,28 +9,32 @@ namespace TestProject
         [Fact]
         public void SerializePrimitive_string()
         {
-            string json = MetaJson.MetaJsonSerializer.Serialize<String>("Hello!");
-            Assert.Equal("\"Hello!\"", json);
+            string simpleString = "Hello!";
+            string json = MetaJson.MetaJsonSerializer.Serialize(simpleString);
+            Assert.Equal($"\"{simpleString}\"", json);
         }
 
         [Fact]
         public void SerializePrimitive_string_null()
         {
-            string json = MetaJson.MetaJsonSerializer.Serialize<String>(null);
+            string nullString = null;
+            string json = MetaJson.MetaJsonSerializer.Serialize(nullString);
             Assert.Equal("null", json);
         }
 
         [Fact]
         public void SerializePrimitive_int()
         {
-            string json = MetaJson.MetaJsonSerializer.Serialize<int>(42);
-            Assert.Equal("42", json);
+            int value = 42;
+            string json = MetaJson.MetaJsonSerializer.Serialize(value);
+            Assert.Equal($"{value}", json);
         }
 
         [Fact]
         public void SerializeObject_null()
         {
-            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(null as SimpleObj);
+            SimpleObj nullSimpleObj = null;
+            string json = MetaJson.MetaJsonSerializer.Serialize(nullSimpleObj);
             Assert.Equal("null", json);
         }
 
@@ -38,7 +42,7 @@ namespace TestProject
         public void SerializeObject_empty()
         {
             EmptyObj emptyObj = new EmptyObj();
-            string json = MetaJson.MetaJsonSerializer.Serialize<EmptyObj>(emptyObj);
+            string json = MetaJson.MetaJsonSerializer.Serialize(emptyObj);
             Assert.Equal("{\n}", json);
         }
 
@@ -46,7 +50,7 @@ namespace TestProject
         public void SerializeObject_defaultProperties()
         {
             SimpleObj obj = new SimpleObj();
-            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(obj);
+            string json = MetaJson.MetaJsonSerializer.Serialize(obj);
             obj = Newtonsoft.Json.JsonConvert.DeserializeObject<SimpleObj>(json);
             obj.VerifyPropertiesAreDefaulted();
         }
@@ -68,7 +72,7 @@ namespace TestProject
                     new SimpleSubObj { PropertyString = "Subobject String Value 3" }
                 }
             };
-            string json = MetaJson.MetaJsonSerializer.Serialize<SimpleObj>(obj);
+            string json = MetaJson.MetaJsonSerializer.Serialize(obj);
             SimpleObj obj2 = Newtonsoft.Json.JsonConvert.DeserializeObject<SimpleObj>(json);
 
             obj.VerifyEqualsTo(obj2);
