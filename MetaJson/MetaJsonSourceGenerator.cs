@@ -51,7 +51,7 @@ namespace MetaJson
 {
     internal static class DummySymbol {public static void DoNothing() {}}
 
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Property | AttributeTargets.Field)]
     internal sealed class SerializeAttribute: Attribute { }
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Property)]
@@ -130,7 +130,7 @@ namespace MetaJson
     class SerializableProperty
     {
         public string Name { get; set; }
-        public IPropertySymbol Symbol { get; set; }
+        public ITypeSymbol Type { get; set; }
         public bool CanBeNull { get; set; }
         public bool ArrayItemCanBeNull { get; set; }
     }

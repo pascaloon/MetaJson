@@ -213,7 +213,7 @@ namespace MetaJson
                     DzObjectNode objectNode = new DzObjectNode(invocationTypeStr);
                     foreach (SerializableProperty sp in foundClass.Properties)
                     {
-                        DzJsonNode value = BuildDzTree(sp.Symbol.Type, $"obj.{sp.Name}");
+                        DzJsonNode value = BuildDzTree(sp.Type, $"obj.{sp.Name}");
                         if (value is DzExpressionNode expr)
                         {
                             DzAssignmentNode assignment = new DzAssignmentNode($"obj.{sp.Name}", expr);

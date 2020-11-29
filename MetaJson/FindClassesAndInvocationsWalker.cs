@@ -67,14 +67,26 @@ namespace MetaJson
                 CanBeNull = !type.IsValueType && !type.GetAttributes().Any(a => a.AttributeClass.ToString().Contains("NotNull"))
             };
 
-            List<IPropertySymbol> serializableProperties = type.GetMembers()
-                .OfType<IPropertySymbol>()
-                //.Where(p => p.GetAttributes().Any(a => a.AttributeClass.ToString().Equals("MetaJson.SerializeAttribute")))
-                .ToList();
+            ImmutableArray<ISymbol> members = type.GetMembers();
 
-            foreach (IPropertySymbol serializableProperty in serializableProperties)
+
+            foreach (ISymbol serializableProperty in type.GetMembers())
             {
                 // serializableProperty.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() as PropertyDeclarationSyntax,
+
+                ITypeSymbol typeSymbol = null;
+                if (serializableProperty is IPropertySymbol ps)
+                {
+                    typeSymbol = ps.Type;
+                }
+                else if (serializableProperty is IFieldSymbol fs)
+                {
+                    typeSymbol = fs.Type;
+                }
+                else
+                {
+                    continue;
+                }
 
                 ImmutableArray<AttributeData> attributes = serializableProperty.GetAttributes();
                 if (!attributes.Any(a => a.AttributeClass.ToString().Contains("Serialize")))
@@ -83,8 +95,8 @@ namespace MetaJson
                 SerializableProperty sp = new SerializableProperty()
                 {
                     Name = serializableProperty.Name,
-                    Symbol = serializableProperty,
-                    CanBeNull = !serializableProperty.Type.IsValueType && !attributes.Any(a => a.AttributeClass.ToString().Contains("NotNull")),
+                    Type = typeSymbol,
+                    CanBeNull = !typeSymbol.IsValueType && !attributes.Any(a => a.AttributeClass.ToString().Contains("NotNull")),
                     ArrayItemCanBeNull = !attributes.Any(a => a.AttributeClass.ToString().Contains("ArrayItemNotNull"))
                 };
 
