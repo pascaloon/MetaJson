@@ -52,7 +52,15 @@ namespace MetaJson
             nodes.Add(new CSharpLineNode($"{ct}StringBuilder sb = new StringBuilder();"));
 
             JsonNode jsonTree = BuildTree(invocation.TypeArg, "obj");
-            nodes.AddRange(jsonTree.GetNodes(treeContext));
+            if (jsonTree is null)
+            {
+                string invocationTypeStr = invocation.TypeArg.ToString();
+                nodes.Add(new CSharpLineNode($"{ct}// Type '{invocationTypeStr}' isn't marked as serializable!"));
+            }
+            else
+            {
+                nodes.AddRange(jsonTree.GetNodes(treeContext));
+            }
 
             ct = treeContext.CSharpIndent;
             nodes.Add(new CSharpLineNode($"{ct}return sb.ToString();"));

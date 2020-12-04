@@ -66,20 +66,27 @@ namespace MetaJson
 
             List<MethodNode> nodes = new List<MethodNode>();
             string invocationTypeStr = invocation.TypeArg.ToString();
-
-            nodes.Add(new CSharpLineNode($"{ct}ReadOnlySpan<char> json = content.AsSpan().TrimStart();"));
-            nodes.Add(new CSharpLineNode($"{ct}if (json.IsEmpty)"));
-            nodes.Add(new CSharpLineNode($"{ct}{{"));
-            ct = treeContext.IndentCSharp(+1);
-            nodes.Add(new CSharpLineNode($"{ct}obj = default({invocationTypeStr});"));
-            nodes.Add(new CSharpLineNode($"{ct}return;"));
-            ct = treeContext.IndentCSharp(-1);
-            nodes.Add(new CSharpLineNode($"{ct}}}"));
-
-            nodes.Add(new CSharpNode($"{ct}obj = "));
             DzJsonNode dzTree = BuildDzTree(invocation.TypeArg, "obj");
-            nodes.AddRange(dzTree.GetNodes(treeContext));
-            nodes.Add(new CSharpLineNode($";"));
+            if (dzTree is null)
+            {
+                nodes.Add(new CSharpLineNode($"{ct}obj = default({invocationTypeStr});"));
+                nodes.Add(new CSharpLineNode($"{ct}// Type '{invocationTypeStr}' isn't marked as serializable!"));
+            }
+            else
+            {
+                nodes.Add(new CSharpLineNode($"{ct}ReadOnlySpan<char> json = content.AsSpan().TrimStart();"));
+                nodes.Add(new CSharpLineNode($"{ct}if (json.IsEmpty)"));
+                nodes.Add(new CSharpLineNode($"{ct}{{"));
+                ct = treeContext.IndentCSharp(+1);
+                nodes.Add(new CSharpLineNode($"{ct}obj = default({invocationTypeStr});"));
+                nodes.Add(new CSharpLineNode($"{ct}return;"));
+                ct = treeContext.IndentCSharp(-1);
+                nodes.Add(new CSharpLineNode($"{ct}}}"));
+
+                nodes.Add(new CSharpNode($"{ct}obj = "));
+                nodes.AddRange(dzTree.GetNodes(treeContext));
+                nodes.Add(new CSharpLineNode($";"));
+            }
 
 
             //nodes.Add(new CSharpLineNode($"{ct}return new {invocationTypeStr}();"));
