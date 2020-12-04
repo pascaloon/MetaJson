@@ -28,7 +28,7 @@ namespace MetaJson
             yield return new CSharpLineNode($"{ct}{{");
             ct = context.IndentCSharp(+1);
             yield return new CSharpLineNode($"{ct}json = json.Slice(4);");
-            yield return new CSharpLineNode($"{ct}return null;");
+            yield return new CSharpLineNode($"{ct}return default({Type});");
             ct = context.IndentCSharp(-1);
             yield return new CSharpLineNode($"{ct}}}");
             string errmsg = "Invalid JSON at position: {content.Length - json.Length}. Expected '{{'";
@@ -106,7 +106,7 @@ namespace MetaJson
             yield return new CSharpLineNode($"{ct}{{");
             ct = context.IndentCSharp(+1);
             yield return new CSharpLineNode($"{ct}json = json.Slice(4);");
-            yield return new CSharpLineNode($"{ct}return null;");
+            yield return new CSharpLineNode($"{ct}return default({Type});");
             ct = context.IndentCSharp(-1);
             yield return new CSharpLineNode($"{ct}}}");
             string errmsg = "Invalid JSON at position: {content.Length - json.Length}. Expected '['";
